@@ -89,6 +89,7 @@
     // --- UI State ---
     let currentPostType = 'text';
     let postHistory = [];
+    let csvTextRows = null;
     // --- Sidebar Post Type Selection ---
     document.querySelectorAll('.post-type-btn').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -242,6 +243,35 @@
       return videoId;
     }
 
+    document.getElementById('importCsv').addEventListener('click', function() {
+      if (currentPostType !== 'text') {
+        logMessage('<span class="text-yellow-400">CSV import is only available for text posts.</span>');
+        return;
+      }
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.csv,text/csv';
+      fileInput.style.display = 'none';
+      fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const text = event.target.result;
+          csvTextRows = text.split(/\r?\n/).filter(Boolean);
+          if (csvTextRows.length === 0) {
+            logMessage('<span class="text-red-400">CSV file is empty.</span>');
+            return;
+          }
+          logMessage(`<span class='text-green-400'>CSV uploaded: <b>${csvTextRows.length}</b> rows loaded. Click <b>Publish to Facebook</b> to schedule these posts.</span>`);
+        };
+        reader.readAsText(file);
+      });
+      document.body.appendChild(fileInput);
+      fileInput.click();
+      setTimeout(() => document.body.removeChild(fileInput), 1000);
+    });
+
     document.getElementById('composerForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       clearLog();
@@ -251,6 +281,19 @@
       const scheduleTime = document.getElementById('postNow').checked ? null : document.getElementById('scheduleTime').value;
       const postType = currentPostType;
       const gapMins = parseInt(document.getElementById('gapMins').value) || 0;
+      const now = new Date();
+      let minAllowed = new Date(now.getTime() + 20 * 60000);
+      if (!document.getElementById('postNow').checked) {
+        if (!scheduleTime) {
+          logMessage('<span class="text-red-400">Please select a schedule time.</span>');
+          return;
+        }
+        const sched = new Date(scheduleTime);
+        if (sched < minAllowed) {
+          logMessage('<span class="text-red-400">Please select a schedule time at least 20 minutes in the future.</span>');
+          return;
+        }
+      }
       try {
         if (!fbAccessToken || !fbPageId) throw new Error('Please enter Facebook credentials.');
         logMessage('Validating Facebook credentials...');
@@ -258,7 +301,27 @@
         logMessage('Facebook access token is valid.');
         let postId;
         if (postType === 'text') {
-          postId = await createTextPost(msg, scheduleTime, fbAccessToken, fbPageId);
+          if (csvTextRows && csvTextRows.length > 0) {
+            let scheduledTime = scheduleTime ? new Date(scheduleTime) : new Date();
+            for (let i = 0; i < csvTextRows.length; i++) {
+              const message = csvTextRows[i];
+              if (!message.trim()) continue;
+              try {
+                const postIdRow = await createTextPost(message, scheduledTime, fbAccessToken, fbPageId);
+                addHistoryEntry({ id: postIdRow, time: scheduledTime.toLocaleString(), type: 'text', msg: message });
+                logMessage(`<b>Success:</b> Posted text from CSV. ID: ${postIdRow}`);
+              } catch (err) {
+                logMessage(`<span class='text-red-400'>Error posting row ${i+1}: ${err.message || err}</span>`);
+              }
+              if (gapMins && i < csvTextRows.length - 1) {
+                scheduledTime = new Date(scheduledTime.getTime() + gapMins * 60000);
+              }
+            }
+            csvTextRows = null; // Reset after posting
+            return;
+          } else {
+            postId = await createTextPost(msg, scheduleTime, fbAccessToken, fbPageId);
+          }
         } else if (postType === 'image') {
           const files = document.getElementById('composerImages').files;
           if (!files.length) throw new Error('Please select at least one image.');
@@ -311,57 +374,6 @@
       } else {
         document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Invalid token or page ID.</span>';
       }
-    });
-    // --- CSV Import for Text Posts ---
-    document.getElementById('importCsv').addEventListener('click', function() {
-      if (currentPostType !== 'text') {
-        logMessage('<span class="text-yellow-400">CSV import is only available for text posts.</span>');
-        return;
-      }
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.csv,text/csv';
-      fileInput.style.display = 'none';
-      fileInput.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async function(event) {
-          const text = event.target.result;
-          const rows = text.split(/\r?\n/).filter(Boolean);
-          let scheduledTime = document.getElementById('postNow').checked ? null : document.getElementById('scheduleTime').value;
-          const fbAccessToken = document.getElementById('fbAccessToken').value.trim();
-          const fbPageId = document.getElementById('fbPageId').value.trim();
-          const gapMins = parseInt(document.getElementById('gapMins').value) || 0;
-          if (!fbAccessToken || !fbPageId) {
-            logMessage('<span class="text-red-400">Please enter Facebook credentials before importing CSV.</span>');
-            return;
-          }
-          if (!(await validateFacebookToken(fbAccessToken, fbPageId))) {
-            logMessage('<span class="text-red-400">Invalid Facebook access token.</span>');
-            return;
-          }
-          let currentTime = scheduledTime ? new Date(scheduledTime) : new Date();
-          for (let i = 0; i < rows.length; i++) {
-            const message = rows[i];
-            if (!message.trim()) continue;
-            try {
-              const postId = await createTextPost(message, currentTime, fbAccessToken, fbPageId);
-              addHistoryEntry({ id: postId, time: currentTime.toLocaleString(), type: 'text', msg: message });
-              logMessage(`<b>Success:</b> Posted text from CSV. ID: ${postId}`);
-            } catch (err) {
-              logMessage(`<span class='text-red-400'>Error posting row ${i+1}: ${err.message || err}</span>`);
-            }
-            if (gapMins && i < rows.length - 1) {
-              currentTime = new Date(currentTime.getTime() + gapMins * 60000);
-            }
-          }
-        };
-        reader.readAsText(file);
-      });
-      document.body.appendChild(fileInput);
-      fileInput.click();
-      setTimeout(() => document.body.removeChild(fileInput), 1000);
     });
   </script>
 </body>
