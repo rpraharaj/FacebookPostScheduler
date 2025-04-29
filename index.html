@@ -312,6 +312,57 @@
         document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Invalid token or page ID.</span>';
       }
     });
+    // --- CSV Import for Text Posts ---
+    document.getElementById('importCsv').addEventListener('click', function() {
+      if (currentPostType !== 'text') {
+        logMessage('<span class="text-yellow-400">CSV import is only available for text posts.</span>');
+        return;
+      }
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.csv,text/csv';
+      fileInput.style.display = 'none';
+      fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+          const text = event.target.result;
+          const rows = text.split(/\r?\n/).filter(Boolean);
+          let scheduledTime = document.getElementById('postNow').checked ? null : document.getElementById('scheduleTime').value;
+          const fbAccessToken = document.getElementById('fbAccessToken').value.trim();
+          const fbPageId = document.getElementById('fbPageId').value.trim();
+          const gapMins = parseInt(document.getElementById('gapMins').value) || 0;
+          if (!fbAccessToken || !fbPageId) {
+            logMessage('<span class="text-red-400">Please enter Facebook credentials before importing CSV.</span>');
+            return;
+          }
+          if (!(await validateFacebookToken(fbAccessToken, fbPageId))) {
+            logMessage('<span class="text-red-400">Invalid Facebook access token.</span>');
+            return;
+          }
+          let currentTime = scheduledTime ? new Date(scheduledTime) : new Date();
+          for (let i = 0; i < rows.length; i++) {
+            const message = rows[i];
+            if (!message.trim()) continue;
+            try {
+              const postId = await createTextPost(message, currentTime, fbAccessToken, fbPageId);
+              addHistoryEntry({ id: postId, time: currentTime.toLocaleString(), type: 'text', msg: message });
+              logMessage(`<b>Success:</b> Posted text from CSV. ID: ${postId}`);
+            } catch (err) {
+              logMessage(`<span class='text-red-400'>Error posting row ${i+1}: ${err.message || err}</span>`);
+            }
+            if (gapMins && i < rows.length - 1) {
+              currentTime = new Date(currentTime.getTime() + gapMins * 60000);
+            }
+          }
+        };
+        reader.readAsText(file);
+      });
+      document.body.appendChild(fileInput);
+      fileInput.click();
+      setTimeout(() => document.body.removeChild(fileInput), 1000);
+    });
   </script>
 </body>
 </html>
