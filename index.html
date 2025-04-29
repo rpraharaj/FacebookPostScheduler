@@ -1,582 +1,317 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Facebook Page Poster Tool</title>
+  <title>Facebook Post Scheduler</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body class="h-full bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors">
-  <div id="app" class="min-h-screen flex flex-col md:flex-row">
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <div class="flex min-h-screen">
     <!-- Sidebar -->
-    <aside class="w-full md:w-64 bg-white dark:bg-gray-800 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-6">
-      <!-- Token & Page ID Management -->
+    <aside class="w-72 bg-gray-800 p-6 flex flex-col gap-6 border-r border-gray-700">
       <div>
-        <h2 class="font-bold text-lg mb-2 flex items-center gap-2">
-          <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.876v-6.987h-2.54v-2.889h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.632.771-1.632 1.563v1.877h2.773l-.443 2.889h-2.33v6.987C18.343 21.128 22 16.991 22 12"/></svg>
-          Facebook Credentials
-        </h2>
-        <div class="flex flex-col gap-2">
-          <input id="tokenInput" type="text" placeholder="Page Access Token" class="input input-bordered p-2 rounded border border-gray-300 dark:bg-gray-700 dark:border-gray-600" autocomplete="off">
-          <input id="pageIdInput" type="text" placeholder="Page ID" class="input input-bordered p-2 rounded border border-gray-300 dark:bg-gray-700 dark:border-gray-600" autocomplete="off">
-          <button id="saveTokenBtn" class="bg-blue-600 text-white rounded px-3 py-2 font-semibold hover:bg-blue-700 transition">Validate & Save</button>
-          <div id="tokenStatus" class="text-xs mt-1"></div>
-        </div>
+        <h2 class="text-lg font-bold mb-2">Facebook Credentials</h2>
+        <label class="block text-gray-300 text-sm mb-1" for="fbAccessToken">Access Token</label>
+        <input id="fbAccessToken" type="text" placeholder="Enter Facebook Access Token" class="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600 text-gray-100 mb-2">
+        <label class="block text-gray-300 text-sm mb-1" for="fbPageId">Page ID</label>
+        <input id="fbPageId" type="text" placeholder="Enter Facebook Page ID" class="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600 text-gray-100 mb-2">
+        <button id="validateBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded mt-2">Validate & Save</button>
+        <div id="tokenStatus" class="text-xs mt-2"></div>
       </div>
-      <!-- Post Type Selector -->
       <div>
-        <h2 class="font-bold text-lg mb-2">Post Type</h2>
-        <nav class="flex md:flex-col gap-2" id="postTypeNav">
-          <button class="post-type-btn px-3 py-2 rounded text-left hover:bg-blue-50 dark:hover:bg-blue-800" data-type="text">Text Post</button>
-          <button class="post-type-btn px-3 py-2 rounded text-left hover:bg-blue-50 dark:hover:bg-blue-800" data-type="image">Image Post</button>
-          <button class="post-type-btn px-3 py-2 rounded text-left hover:bg-blue-50 dark:hover:bg-blue-800" data-type="link">Link Post</button>
-          <button class="post-type-btn px-3 py-2 rounded text-left hover:bg-blue-50 dark:hover:bg-blue-800" data-type="video">Video Post</button>
+        <h2 class="text-lg font-bold mb-2">Post Type</h2>
+        <nav class="flex flex-col gap-2">
+          <button type="button" data-type="text" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Text Post</button>
+          <button type="button" data-type="image" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Image Post</button>
+          <button type="button" data-type="link" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Link Post</button>
+          <button type="button" data-type="video" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Video Post</button>
         </nav>
       </div>
-      <!-- Dark Mode Toggle -->
-      <div class="flex items-center gap-2 mt-auto">
-        <label class="flex items-center cursor-pointer">
-          <input type="checkbox" id="darkModeToggle" class="hidden">
-          <span class="w-10 h-6 flex items-center bg-gray-300 dark:bg-gray-600 rounded-full p-1 duration-300 ease-in-out">
-            <span class="bg-white dark:bg-gray-900 w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out"></span>
-          </span>
-        </label>
-        <span class="ml-2 text-sm">Dark Mode</span>
-      </div>
     </aside>
-    <!-- Main Panel -->
-    <main class="flex-1 p-4 flex flex-col gap-6">
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col p-8 gap-8">
       <!-- Post Composer -->
-      <section class="bg-white dark:bg-gray-800 rounded shadow p-4 mb-4">
-        <h2 class="font-bold text-xl mb-4">Post Composer</h2>
+      <section class="bg-gray-800 rounded-lg p-6 mb-4 shadow">
+        <h2 class="text-xl font-bold mb-4">Post Composer</h2>
         <form id="composerForm" class="flex flex-col gap-4">
-          <!-- Dynamic Fields -->
-          <div id="composerFields"></div>
-          <!-- DateTime Picker & Post Now -->
-          <div class="flex flex-col md:flex-row md:items-center gap-2">
-            <label class="flex items-center gap-2">
-              <input type="checkbox" id="postNowToggle" checked>
-              <span>Post Now</span>
-            </label>
-            <div id="scheduleTimeWrap" class="flex items-center gap-2 hidden">
-              <label for="scheduleTime" class="text-sm">Schedule for:</label>
-              <input type="datetime-local" id="scheduleTime" class="p-2 rounded border border-gray-300 dark:bg-gray-700 dark:border-gray-600">
-              <select id="timezoneSelect" class="p-2 rounded border border-gray-300 dark:bg-gray-700 dark:border-gray-600"></select>
-            </div>
+          <textarea id="composerMessage" rows="3" placeholder="Write your post..." class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-gray-100"></textarea>
+          <div id="composerImageFields" class="hidden flex flex-col gap-2">
+            <label class="text-gray-300">Choose Image(s)</label>
+            <input id="composerImages" type="file" accept="image/*" multiple class="bg-gray-700 border border-gray-600 rounded text-gray-100">
           </div>
-          <!-- Publish Button -->
-          <div class="flex flex-col gap-2 md:flex-row md:items-center">
-            <button type="submit" class="bg-blue-600 text-white rounded px-4 py-2 font-semibold hover:bg-blue-700 transition">Publish to Facebook</button>
-            <button type="button" id="saveDraftBtn" class="bg-gray-300 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-4 py-2 font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition">Save Draft</button>
-            <div class="flex flex-col md:flex-row md:items-center gap-2">
-              <button type="button" id="importCsvBtn" class="bg-green-600 text-white rounded px-4 py-2 font-semibold hover:bg-green-700 transition">Import CSV</button>
-              <input type="number" id="csvGapInput" min="0" max="1440" placeholder="Gap (mins)" class="w-28 p-2 rounded border border-gray-300 dark:bg-gray-700 dark:border-gray-600" title="Gap between posts in minutes">
-            </div>
-            <button type="button" id="aiGenBtn" class="bg-purple-600 text-white rounded px-4 py-2 font-semibold hover:bg-purple-700 transition">AI Generate</button>
+          <div id="composerLinkFields" class="hidden flex flex-col gap-2">
+            <label class="text-gray-300">Link URL</label>
+            <input id="composerLinkUrl" type="url" placeholder="https://example.com" class="bg-gray-700 border border-gray-600 rounded text-gray-100">
+            <label class="text-gray-300">(Optional) Thumbnail Image</label>
+            <input id="composerLinkImage" type="file" accept="image/*" class="bg-gray-700 border border-gray-600 rounded text-gray-100">
           </div>
-          <!-- Notification -->
-          <div id="composerNotification" class="mt-2 text-sm"></div>
+          <div id="composerVideoFields" class="hidden flex flex-col gap-2">
+            <label class="text-gray-300">Choose Video(s)</label>
+            <input id="composerVideos" type="file" accept="video/*" multiple class="bg-gray-700 border border-gray-600 rounded text-gray-100">
+          </div>
+          <div class="flex gap-4 items-center">
+            <input id="postNow" type="checkbox" class="mr-2">
+            <label for="postNow" class="text-gray-300">Post Now</label>
+            <span class="ml-6 text-gray-400">Schedule for:</span>
+            <input id="scheduleTime" type="datetime-local" class="bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1">
+            <select id="timezone" class="ml-2 bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1">
+              <option value="Asia/Calcutta">Asia/Calcutta</option>
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">America/New_York</option>
+              <option value="Europe/London">Europe/London</option>
+            </select>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Publish to Facebook</button>
+            <button id="saveDraft" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">Save Draft</button>
+            <button id="restoreDraft" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">Restore Draft</button>
+            <button id="clearDraft" type="button" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Clear Draft</button>
+            <button id="importCsv" type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Import CSV</button>
+            <input id="gapMins" type="number" min="1" placeholder="Gap (mins)" class="bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1 w-24">
+            <button id="aiGenerate" type="button" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">AI Generate</button>
+          </div>
         </form>
       </section>
       <!-- Post Preview -->
-      <section class="bg-white dark:bg-gray-800 rounded shadow p-4 mb-4">
-        <h2 class="font-bold text-xl mb-4">Post Preview</h2>
-        <div id="postPreview" class="border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900"></div>
+      <section class="bg-gray-800 rounded-lg p-4 mb-4">
+        <h3 class="text-lg font-semibold mb-2">Post Preview</h3>
+        <div id="postPreview" class="bg-gray-900 rounded p-3 min-h-[60px] text-gray-300"></div>
       </section>
       <!-- Post History & Logs -->
-      <section class="bg-white dark:bg-gray-800 rounded shadow p-4 flex-1 overflow-y-auto">
-        <h2 class="font-bold text-xl mb-4">Post History & Logs</h2>
-        <div id="postHistory" class="flex flex-col gap-3 max-h-96 overflow-y-auto"></div>
+      <section class="bg-gray-800 rounded-lg p-4 flex-1">
+        <h3 class="text-lg font-semibold mb-2">Post History & Logs</h3>
+        <div id="postHistory" class="mb-4 max-h-60 overflow-y-auto"></div>
+        <div id="logMessages" class="bg-blue-950 p-3 rounded text-gray-300 text-sm min-h-[40px]"></div>
       </section>
     </main>
   </div>
-  <!-- Hidden file inputs for CSV and AI (if needed) -->
-  <input type="file" id="csvInput" accept=".csv" class="hidden">
-  <input type="file" id="imageInput" accept="image/*" class="hidden">
-  <input type="file" id="videoInput" accept="video/*" class="hidden">
   <script>
-// --- Utility functions ---
-function showNotification(msg, type = 'info', el = 'composerNotification') {
-  const n = document.getElementById(el);
-  n.textContent = msg;
-  n.className = 'mt-2 text-sm ' + (type === 'success' ? 'text-green-600' : type === 'error' ? 'text-red-600' : 'text-blue-600');
-  setTimeout(() => { n.textContent = ''; }, 5000);
-}
-function formatDate(dt) {
-  if (!dt) return '';
-  return new Date(dt).toLocaleString();
-}
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text);
-  showNotification('Copied!', 'success');
-}
-function compressImage(file, maxW = 1200, maxH = 1200, quality = 0.8) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-    reader.onload = e => { img.src = e.target.result; };
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxW || h > maxH) {
-        const scale = Math.min(maxW / w, maxH / h);
-        w = w * scale; h = h * scale;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(blob => { resolve(blob); }, 'image/jpeg', quality);
-    };
-    img.onerror = reject;
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-function getTimezones() {
-  return Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [Intl.DateTimeFormat().resolvedOptions().timeZone];
-}
-function toUnixTimestampLocal(dtStr, tz) {
-  if (!dtStr) return null;
-  try {
-    const dt = new Date(dtStr);
-    return Math.floor(dt.getTime() / 1000);
-  } catch { return null; }
-}
-// --- Dark Mode ---
-function setDarkMode(on) {
-  document.documentElement.classList.toggle('dark', on);
-  localStorage.setItem('fbp_dark_mode', on ? '1' : '0');
-}
-document.getElementById('darkModeToggle').addEventListener('change', e => {
-  setDarkMode(e.target.checked);
-});
-if (localStorage.getItem('fbp_dark_mode') === '1') {
-  document.getElementById('darkModeToggle').checked = true;
-  setDarkMode(true);
-}
-// --- Token & Page ID Management ---
-function updateTokenStatus(msg, ok = false, expiry = null) {
-  const el = document.getElementById('tokenStatus');
-  el.textContent = msg + (expiry ? ` (Expires: ${formatDate(expiry * 1000)})` : '');
-  el.className = 'mt-1 text-xs ' + (ok ? 'text-green-600' : 'text-red-600');
-}
-function saveTokenAndPageId() {
-  const token = document.getElementById('tokenInput').value.trim();
-  const pageId = document.getElementById('pageIdInput').value.trim();
-  if (!token || !pageId) {
-    updateTokenStatus('Token and Page ID required.', false);
-    return;
-  }
-  fetch(`https://graph.facebook.com/debug_token?input_token=${token}&access_token=${token}`)
-    .then(r => r.json())
-    .then(data => {
-      if (data.data && data.data.is_valid) {
-        localStorage.setItem('fbp_token', token);
-        localStorage.setItem('fbp_page_id', pageId);
-        updateTokenStatus('Token valid.', true, data.data.expires_at);
-        showNotification('Token/Page ID saved!', 'success', 'tokenStatus');
-        loadTokenAndPageId();
-      } else {
-        updateTokenStatus('Invalid token.', false);
-      }
-    }).catch(() => {
-      updateTokenStatus('Network error.', false);
-    });
-}
-function loadTokenAndPageId() {
-  const token = localStorage.getItem('fbp_token') || '';
-  const pageId = localStorage.getItem('fbp_page_id') || '';
-  document.getElementById('tokenInput').value = token;
-  document.getElementById('pageIdInput').value = pageId;
-  if (token) {
-    fetch(`https://graph.facebook.com/debug_token?input_token=${token}&access_token=${token}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.data && data.data.is_valid) {
-          updateTokenStatus('Token valid.', true, data.data.expires_at);
-        } else {
-          updateTokenStatus('Invalid token.', false);
-        }
-      }).catch(() => {
-        updateTokenStatus('Network error.', false);
+    // --- UI State ---
+    let currentPostType = 'text';
+    let postHistory = [];
+    // --- Sidebar Post Type Selection ---
+    document.querySelectorAll('.post-type-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.post-type-btn').forEach(b => b.classList.remove('bg-blue-700'));
+        this.classList.add('bg-blue-700');
+        setPostType(this.dataset.type);
       });
-  }
-}
-document.getElementById('saveTokenBtn').addEventListener('click', saveTokenAndPageId);
-loadTokenAndPageId();
-// --- Post Type Selection ---
-let currentPostType = localStorage.getItem('fbp_post_type') || 'text';
-function updatePostType(type) {
-  currentPostType = type;
-  localStorage.setItem('fbp_post_type', type);
-  document.querySelectorAll('.post-type-btn').forEach(btn => {
-    btn.classList.toggle('bg-blue-100', btn.dataset.type === type);
-    btn.classList.toggle('text-blue-700', btn.dataset.type === type);
-    btn.classList.toggle('font-bold', btn.dataset.type === type);
-  });
-  renderComposerFields();
-  renderPostPreview();
-}
-document.querySelectorAll('.post-type-btn').forEach(btn => {
-  btn.addEventListener('click', () => updatePostType(btn.dataset.type));
-});
-updatePostType(currentPostType);
-// --- Composer Fields ---
-function renderComposerFields(draft = null) {
-  const fields = document.getElementById('composerFields');
-  let html = '';
-  const d = draft || {};
-  if (currentPostType === 'text') {
-    html += `<textarea id="messageInput" class="p-2 rounded border w-full border-gray-300 dark:bg-gray-700 dark:border-gray-600" rows="4" placeholder="Write your post...">${d.message || ''}</textarea>`;
-  } else if (currentPostType === 'image') {
-    html += `<textarea id="messageInput" class="p-2 rounded border w-full border-gray-300 dark:bg-gray-700 dark:border-gray-600" rows="3" placeholder="Write your post...">${d.message || ''}</textarea>`;
-    html += `<input type="file" id="imageInputField" accept="image/*" class="block mt-2">`;
-    html += `<div id="imagePreview" class="mt-2">${d.imageUrl ? `<img src="${d.imageUrl}" class="max-w-xs rounded">` : ''}</div>`;
-  } else if (currentPostType === 'link') {
-    html += `<textarea id="messageInput" class="p-2 rounded border w-full border-gray-300 dark:bg-gray-700 dark:border-gray-600" rows="3" placeholder="Write your post...">${d.message || ''}</textarea>`;
-    html += `<input type="url" id="linkInput" class="p-2 rounded border w-full border-gray-300 dark:bg-gray-700 dark:border-gray-600 mt-2" placeholder="Paste a link..." value="${d.link || ''}">`;
-  } else if (currentPostType === 'video') {
-    html += `<textarea id="messageInput" class="p-2 rounded border w-full border-gray-300 dark:bg-gray-700 dark:border-gray-600" rows="3" placeholder="Write your post...">${d.message || ''}</textarea>`;
-    html += `<input type="file" id="videoInputField" accept="video/*" class="block mt-2">`;
-    html += `<div id="videoPreview" class="mt-2">${d.videoUrl ? `<video src="${d.videoUrl}" controls class="max-w-xs rounded"></video>` : ''}</div>`;
-    html += `<div id="videoProgressBar" class="w-full bg-gray-200 rounded h-2 mt-2 hidden"><div class="bg-blue-600 h-2 rounded" style="width:0%"></div></div>`;
-  }
-  fields.innerHTML = html;
-  if (currentPostType === 'image') {
-    document.getElementById('imageInputField').addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        document.getElementById('imagePreview').innerHTML = `<img src="${url}" class="max-w-xs rounded">`;
-      }
     });
-  }
-  if (currentPostType === 'video') {
-    document.getElementById('videoInputField').addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        document.getElementById('videoPreview').innerHTML = `<video src="${url}" controls class="max-w-xs rounded"></video>`;
+    function setPostType(type) {
+      currentPostType = type;
+      document.getElementById('composerImageFields').classList.toggle('hidden', type !== 'image');
+      document.getElementById('composerLinkFields').classList.toggle('hidden', type !== 'link');
+      document.getElementById('composerVideoFields').classList.toggle('hidden', type !== 'video');
+      // Optionally reset preview
+      updatePreview();
+    }
+    setPostType('text');
+    // --- Composer Interactivity ---
+    document.getElementById('composerForm').addEventListener('input', updatePreview);
+    document.getElementById('composerForm').addEventListener('change', updatePreview);
+    function updatePreview() {
+      const msg = document.getElementById('composerMessage').value;
+      let html = `<div class='mb-2'><b>Type:</b> ${currentPostType.charAt(0).toUpperCase()+currentPostType.slice(1)} Post</div>`;
+      if (msg) html += `<div class='mb-2'><b>Message:</b> ${msg}</div>`;
+      if (currentPostType === 'image') {
+        const files = document.getElementById('composerImages').files;
+        if (files.length) html += `<div><b>Images:</b> ${Array.from(files).map(f=>f.name).join(', ')}</div>`;
       }
-    });
-  }
-}
-// --- DateTime Picker & Timezone ---
-function populateTimezoneSelect() {
-  const sel = document.getElementById('timezoneSelect');
-  sel.innerHTML = '';
-  const zones = getTimezones();
-  const curr = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  zones.forEach(z => {
-    const opt = document.createElement('option');
-    opt.value = z; opt.textContent = z;
-    if (z === curr) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-populateTimezoneSelect();
-document.getElementById('postNowToggle').addEventListener('change', e => {
-  document.getElementById('scheduleTimeWrap').classList.toggle('hidden', e.target.checked);
-});
-// --- Post Preview ---
-function renderPostPreview() {
-  const msg = document.getElementById('messageInput')?.value || '';
-  let html = '';
-  if (msg) {
-    html += `<div class='mb-2'><b>Message:</b><br><span>${marked.parseInline(msg)}</span></div>`;
-  }
-  if (currentPostType === 'image') {
-    const img = document.getElementById('imageInputField')?.files?.[0];
-    if (img) {
-      const url = URL.createObjectURL(img);
-      html += `<div class='mb-2'><b>Image Preview:</b><br><img src='${url}' class='max-w-xs rounded'></div>`;
-    }
-  }
-  if (currentPostType === 'link') {
-    const link = document.getElementById('linkInput')?.value;
-    if (link) {
-      html += `<div class='mb-2'><b>Link:</b> <a href='${link}' class='text-blue-600 underline' target='_blank'>${link}</a></div>`;
-    }
-  }
-  if (currentPostType === 'video') {
-    const vid = document.getElementById('videoInputField')?.files?.[0];
-    if (vid) {
-      const url = URL.createObjectURL(vid);
-      html += `<div class='mb-2'><b>Video Preview:</b><br><video src='${url}' controls class='max-w-xs rounded'></video></div>`;
-    }
-  }
-  document.getElementById('postPreview').innerHTML = html;
-}
-document.addEventListener('input', e => {
-  if (["messageInput", "linkInput", "imageInputField", "videoInputField"].includes(e.target.id)) {
-    renderPostPreview();
-  }
-});
-// --- Publish Logic ---
-document.getElementById('composerForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const token = localStorage.getItem('fbp_token');
-  const pageId = localStorage.getItem('fbp_page_id');
-  if (!token || !pageId) {
-    showNotification('Token and Page ID required!', 'error');
-    return;
-  }
-  const msg = document.getElementById('messageInput')?.value || '';
-  let scheduled = !document.getElementById('postNowToggle').checked;
-  let scheduledTime = null;
-  if (scheduled) {
-    const dt = document.getElementById('scheduleTime').value;
-    const tz = document.getElementById('timezoneSelect').value;
-    scheduledTime = toUnixTimestampLocal(dt, tz);
-    if (!scheduledTime || scheduledTime < Math.floor(Date.now()/1000)) {
-      showNotification('Please select a valid future date/time.', 'error');
-      return;
-    }
-  }
-  let endpoint = '', params = {}, formData = null;
-  if (currentPostType === 'text') {
-    endpoint = `https://graph.facebook.com/${pageId}/feed`;
-    params = { message: msg, access_token: token };
-    if (scheduled) { params.published = false; params.scheduled_publish_time = scheduledTime; }
-  } else if (currentPostType === 'image') {
-    endpoint = `https://graph.facebook.com/${pageId}/photos`;
-    const file = document.getElementById('imageInputField').files[0];
-    if (!file) { showNotification('Select an image.', 'error'); return; }
-    showNotification('Compressing image...', 'info');
-    const compressed = await compressImage(file);
-    formData = new FormData();
-    formData.append('message', msg);
-    formData.append('source', compressed, file.name);
-    formData.append('access_token', token);
-    if (scheduled) { formData.append('published', 'false'); formData.append('scheduled_publish_time', scheduledTime); }
-  } else if (currentPostType === 'link') {
-    endpoint = `https://graph.facebook.com/${pageId}/feed`;
-    const link = document.getElementById('linkInput').value;
-    if (!link) { showNotification('Enter a link.', 'error'); return; }
-    params = { message: msg, link: link, access_token: token };
-    if (scheduled) { params.published = false; params.scheduled_publish_time = scheduledTime; }
-  } else if (currentPostType === 'video') {
-    endpoint = `https://graph.facebook.com/${pageId}/videos`;
-    const file = document.getElementById('videoInputField').files[0];
-    if (!file) { showNotification('Select a video.', 'error'); return; }
-    formData = new FormData();
-    formData.append('description', msg);
-    formData.append('file', file, file.name);
-    formData.append('access_token', token);
-    if (scheduled) { formData.append('published', 'false'); formData.append('scheduled_publish_time', scheduledTime); }
-    // Progress bar
-    const bar = document.getElementById('videoProgressBar');
-    bar.classList.remove('hidden');
-    bar.firstElementChild.style.width = '0%';
-    // Use XMLHttpRequest for progress
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', endpoint);
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable) {
-        const pct = (e.loaded / e.total) * 100;
-        bar.firstElementChild.style.width = pct + '%';
+      if (currentPostType === 'link') {
+        const url = document.getElementById('composerLinkUrl').value;
+        if (url) html += `<div><b>Link:</b> ${url}</div>`;
       }
-    };
-    xhr.onload = () => {
-      bar.classList.add('hidden');
-      if (xhr.status === 200) {
-        showNotification('Video post published!', 'success');
-        fetchPostHistory();
-      } else {
-        showNotification('Error: ' + xhr.responseText, 'error');
+      if (currentPostType === 'video') {
+        const files = document.getElementById('composerVideos').files;
+        if (files.length) html += `<div><b>Videos:</b> ${Array.from(files).map(f=>f.name).join(', ')}</div>`;
       }
-    };
-    xhr.onerror = () => {
-      bar.classList.add('hidden');
-      showNotification('Network error.', 'error');
-    };
-    xhr.send(formData);
-    return;
-  }
-  showNotification('Publishing...', 'info');
-  let req;
-  if (formData) {
-    req = fetch(endpoint, { method: 'POST', body: formData });
-  } else {
-    req = fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params) });
-  }
-  req.then(r => r.json()).then(data => {
-    if (data.id || data.post_id) {
-      showNotification('Post published!', 'success');
-      fetchPostHistory();
-    } else {
-      showNotification('Error: ' + (data.error?.message || 'Unknown error'), 'error');
+      document.getElementById('postPreview').innerHTML = html;
     }
-  }).catch(() => {
-    showNotification('Network error.', 'error');
-  });
-});
-// --- Save Draft ---
-document.getElementById('saveDraftBtn').addEventListener('click', () => {
-  const msg = document.getElementById('messageInput')?.value || '';
-  let draft = { type: currentPostType, message: msg };
-  if (currentPostType === 'image') {
-    const img = document.getElementById('imageInputField').files[0];
-    if (img) draft.imageName = img.name;
-  }
-  if (currentPostType === 'link') {
-    draft.link = document.getElementById('linkInput')?.value;
-  }
-  if (currentPostType === 'video') {
-    const vid = document.getElementById('videoInputField').files[0];
-    if (vid) draft.videoName = vid.name;
-  }
-  localStorage.setItem('fbp_draft_' + currentPostType, JSON.stringify(draft));
-  showNotification('Draft saved!', 'success');
-});
-function loadDraft() {
-  const d = localStorage.getItem('fbp_draft_' + currentPostType);
-  if (d) {
-    renderComposerFields(JSON.parse(d));
-  } else {
-    renderComposerFields();
-  }
-}
-document.querySelectorAll('.post-type-btn').forEach(btn => {
-  btn.addEventListener('click', loadDraft);
-});
-loadDraft();
-// --- CSV Import for Bulk Scheduling ---
-document.getElementById('importCsvBtn').addEventListener('click', () => {
-  document.getElementById('csvInput').click();
-});
-document.getElementById('csvInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const gapInput = document.getElementById('csvGapInput');
-  const gapMins = parseInt(gapInput.value, 10) || 0;
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    const rows = evt.target.result.split(/\r?\n/).filter(Boolean);
-    if (!rows.length) return;
-    let count = 0;
-    let lastScheduled = null;
-    (async function run() {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const [type, message, media, sched, tz] = row.split(',');
-        currentPostType = type;
-        renderComposerFields();
-        document.getElementById('messageInput').value = message;
-        let scheduled = !!sched;
-        let scheduledTime = null;
-        let timezone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (scheduled && sched) {
-          scheduledTime = toUnixTimestampLocal(sched, timezone);
-        } else if (gapMins > 0) {
-          // If gap is set and no schedule in CSV, auto-schedule
-          if (lastScheduled) {
-            scheduledTime = lastScheduled + gapMins * 60;
-          } else {
-            scheduledTime = Math.floor(Date.now()/1000) + gapMins * 60 * i;
+    // --- History & Logs ---
+    function addHistoryEntry(entry) {
+      postHistory.unshift(entry);
+      renderHistory();
+    }
+    function renderHistory() {
+      const container = document.getElementById('postHistory');
+      container.innerHTML = postHistory.map(entry =>
+        `<div class='bg-gray-700 rounded mb-2 p-2 flex flex-col gap-1'>
+          <div class='text-xs text-gray-400'>${entry.time} | ${entry.type} | <span class='text-blue-400 cursor-pointer' onclick='navigator.clipboard.writeText("${entry.id}")'>Copy ID</span> | <span class='text-red-400 cursor-pointer' onclick='removeHistoryEntry("${entry.id}")'>Delete</span></div>
+          <div>${entry.msg}</div>
+        </div>`
+      ).join('');
+    }
+    window.removeHistoryEntry = function(id) {
+      postHistory = postHistory.filter(e => e.id !== id);
+      renderHistory();
+    }
+    // --- Log ---
+    function logMessage(msg) {
+      const logDiv = document.getElementById('logMessages');
+      logDiv.innerHTML += `<div>${msg}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    function clearLog() {
+      document.getElementById('logMessages').innerHTML = '';
+    }
+    // --- Facebook Posting Logic (FULL IMPLEMENTATION) ---
+    async function validateFacebookToken(token, pageId) {
+      try {
+        const url = `https://graph.facebook.com/v21.0/debug_token?input_token=${token}&access_token=${token}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return res.ok && data.data && data.data.is_valid;
+      } catch (e) { return false; }
+    }
+
+    async function createTextPost(message, scheduleTime, fbAccessToken, fbPageId) {
+      const url = `https://graph.facebook.com/v21.0/${fbPageId}/feed`;
+      const params = new URLSearchParams({
+        message,
+        access_token: fbAccessToken
+      });
+      if (scheduleTime) {
+        params.append('published', 'false');
+        params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime()/1000));
+      }
+      const res = await fetch(url, { method: 'POST', body: params });
+      const data = await res.json();
+      if (res.ok && data.id) return data.id;
+      throw new Error(data.error?.message || 'Unknown error');
+    }
+
+    async function uploadPhotoAndGetId(file, fbAccessToken, fbPageId) {
+      const url = `https://graph.facebook.com/v21.0/${fbPageId}/photos`;
+      const formData = new FormData();
+      formData.append('source', file);
+      formData.append('access_token', fbAccessToken);
+      formData.append('published', 'false');
+      const res = await fetch(url, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.id) return data.id;
+      throw new Error(data.error?.message || 'Unknown error');
+    }
+
+    async function createImagePost(message, imageId, scheduleTime, fbAccessToken, fbPageId) {
+      const url = `https://graph.facebook.com/v21.0/${fbPageId}/feed`;
+      const params = new URLSearchParams();
+      if (message) params.append('message', message);
+      params.append('attached_media[0]', JSON.stringify({ media_fbid: imageId }));
+      params.append('access_token', fbAccessToken);
+      if (scheduleTime) {
+        params.append('published', 'false');
+        params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime()/1000));
+      }
+      const res = await fetch(url, { method: 'POST', body: params });
+      const data = await res.json();
+      if (res.ok && data.id) return data.id;
+      throw new Error(data.error?.message || 'Unknown error');
+    }
+
+    async function createLinkPost(message, linkUrl, scheduleTime, fbAccessToken, fbPageId) {
+      const url = `https://graph.facebook.com/v21.0/${fbPageId}/feed`;
+      const params = new URLSearchParams({
+        link: linkUrl,
+        message,
+        access_token: fbAccessToken
+      });
+      if (scheduleTime) {
+        params.append('published', 'false');
+        params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime()/1000));
+      }
+      const res = await fetch(url, { method: 'POST', body: params });
+      const data = await res.json();
+      if (res.ok && data.id) return data.id;
+      throw new Error(data.error?.message || 'Unknown error');
+    }
+
+    async function uploadVideoAndGetId(file, fbAccessToken, fbPageId) {
+      const url = `https://graph.facebook.com/v21.0/${fbPageId}/videos`;
+      const formData = new FormData();
+      formData.append('source', file);
+      formData.append('access_token', fbAccessToken);
+      formData.append('published', 'false');
+      const res = await fetch(url, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.id) return data.id;
+      throw new Error(data.error?.message || 'Unknown error');
+    }
+
+    async function createVideoPost(message, videoId, scheduleTime, fbAccessToken, fbPageId) {
+      // Facebook auto-publishes video posts when uploaded, so just log
+      return videoId;
+    }
+
+    document.getElementById('composerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearLog();
+      const fbAccessToken = document.getElementById('fbAccessToken').value.trim();
+      const fbPageId = document.getElementById('fbPageId').value.trim();
+      const msg = document.getElementById('composerMessage').value.trim();
+      const scheduleTime = document.getElementById('postNow').checked ? null : document.getElementById('scheduleTime').value;
+      const postType = currentPostType;
+      const gapMins = parseInt(document.getElementById('gapMins').value) || 0;
+      try {
+        if (!fbAccessToken || !fbPageId) throw new Error('Please enter Facebook credentials.');
+        logMessage('Validating Facebook credentials...');
+        if (!(await validateFacebookToken(fbAccessToken, fbPageId))) throw new Error('Invalid Facebook access token.');
+        logMessage('Facebook access token is valid.');
+        let postId;
+        if (postType === 'text') {
+          postId = await createTextPost(msg, scheduleTime, fbAccessToken, fbPageId);
+        } else if (postType === 'image') {
+          const files = document.getElementById('composerImages').files;
+          if (!files.length) throw new Error('Please select at least one image.');
+          if (files.length > 1 && (!gapMins || gapMins < 1)) throw new Error('Please specify a gap (in minutes) for multiple image posts.');
+          let currentTime = scheduleTime ? new Date(scheduleTime) : new Date();
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            logMessage(`Uploading image: ${file.name} ...`);
+            const imageId = await uploadPhotoAndGetId(file, fbAccessToken, fbPageId);
+            const scheduledTime = i === 0 ? currentTime : new Date(currentTime.getTime() + i * gapMins * 60000);
+            const postIdSingle = await createImagePost(msg, imageId, scheduledTime, fbAccessToken, fbPageId);
+            addHistoryEntry({ id: postIdSingle, time: scheduledTime.toLocaleString(), type: postType, msg: msg + ' (' + file.name + ')' });
+            logMessage(`<b>Success:</b> Posted image ${file.name} to Facebook. ID: ${postIdSingle}`);
           }
-          scheduled = true;
+          postId = '(multiple image posts)';
+        } else if (postType === 'link') {
+          const linkUrl = document.getElementById('composerLinkUrl').value.trim();
+          if (!linkUrl) throw new Error('Please enter a link URL.');
+          postId = await createLinkPost(msg, linkUrl, scheduleTime, fbAccessToken, fbPageId);
+        } else if (postType === 'video') {
+          const files = document.getElementById('composerVideos').files;
+          if (!files.length) throw new Error('Please select at least one video.');
+          for (const file of files) {
+            logMessage(`Uploading video: ${file.name} ...`);
+            const videoId = await uploadVideoAndGetId(file, fbAccessToken, fbPageId);
+            await createVideoPost(msg, videoId, scheduleTime, fbAccessToken, fbPageId);
+          }
+          postId = '(multiple video posts)';
         }
-        if (scheduled) lastScheduled = scheduledTime;
-        if (type === 'text' || type === 'link') {
-          let endpoint = `https://graph.facebook.com/${localStorage.getItem('fbp_page_id')}/feed`;
-          let params = { message, access_token: localStorage.getItem('fbp_token') };
-          if (type === 'link') params.link = media;
-          if (scheduled) { params.published = false; params.scheduled_publish_time = scheduledTime; }
-          await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params) })
-            .then(r => r.json()).then(data => { if (data.id) count++; });
+        if (postId && typeof postId === 'string' && !postId.startsWith('(')) {
+          addHistoryEntry({ id: postId, time: new Date().toLocaleString(), type: postType, msg });
+          logMessage(`<b>Success:</b> Posted ${postType} to Facebook. ID: ${postId}`);
         }
+      } catch (err) {
+        logMessage(`<span class='text-red-400'>${err.message || err}</span>`);
       }
-      showNotification(`Bulk posted ${count} posts!`, 'success');
-      fetchPostHistory();
-    })();
-  };
-  reader.readAsText(file);
-});
-// --- AI Content Generation (Optional) ---
-document.getElementById('aiGenBtn').addEventListener('click', async () => {
-  const promptMsg = prompt('Enter a prompt for AI content:');
-  if (!promptMsg) return;
-  let key = localStorage.getItem('fbp_openai_key') || '';
-  if (!key) key = prompt('Enter your OpenAI API key (will be stored locally):');
-  if (!key) return;
-  localStorage.setItem('fbp_openai_key', key);
-  showNotification('Generating content...', 'info');
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + key
-    },
-    body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: promptMsg }],
-      max_tokens: 200
-    })
-  });
-  const data = await resp.json();
-  if (data.choices && data.choices[0].message.content) {
-    document.getElementById('messageInput').value = data.choices[0].message.content;
-    renderPostPreview();
-    showNotification('AI content generated!', 'success');
-  } else {
-    showNotification('AI error: ' + (data.error?.message || 'Unknown error'), 'error');
-  }
-});
-// --- Post History & Logs ---
-async function fetchPostHistory() {
-  const token = localStorage.getItem('fbp_token');
-  const pageId = localStorage.getItem('fbp_page_id');
-  if (!token || !pageId) return;
-  const url = `https://graph.facebook.com/${pageId}/posts?fields=message,created_time,permalink_url,id&access_token=${token}`;
-  const el = document.getElementById('postHistory');
-  el.innerHTML = '<div class="text-sm text-gray-500">Loading...</div>';
-  try {
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (!data.data) { el.innerHTML = '<div class="text-red-600">Failed to fetch posts.</div>'; return; }
-    el.innerHTML = '';
-    for (const post of data.data) {
-      const msg = post.message ? `<div class='mb-1'>${post.message}</div>` : '';
-      const time = formatDate(post.created_time);
-      const url = post.permalink_url;
-      const id = post.id;
-      el.innerHTML += `<div class="border rounded p-3 bg-gray-50 dark:bg-gray-900 flex flex-col gap-1">
-        ${msg}
-        <div class="flex items-center gap-2 text-xs text-gray-500">
-          <span>${time}</span>
-          <a href="${url}" target="_blank" class="text-blue-600 underline">View</a>
-          <button class="copy-btn text-gray-700 dark:text-gray-200" data-copy="${id}">Copy ID</button>
-          <button class="copy-btn text-gray-700 dark:text-gray-200" data-copy="${url}">Copy URL</button>
-          <button class="delete-btn text-red-600" data-id="${id}">Delete</button>
-        </div>
-      </div>`;
-    }
-    // Attach copy/delete listeners
-    document.querySelectorAll('.copy-btn').forEach(btn => {
-      btn.onclick = () => copyToClipboard(btn.dataset.copy);
     });
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.onclick = async () => {
-        if (!confirm('Delete this post?')) return;
-        const id = btn.dataset.id;
-        const delUrl = `https://graph.facebook.com/${id}?access_token=${token}`;
-        const resp = await fetch(delUrl, { method: 'DELETE' });
-        const res = await resp.json();
-        if (res.success) {
-          showNotification('Post deleted!', 'success');
-          fetchPostHistory();
-        } else {
-          showNotification('Delete failed.', 'error');
-        }
-      };
+    // --- Validate Button ---
+    document.getElementById('validateBtn').addEventListener('click', async function() {
+      const token = document.getElementById('fbAccessToken').value.trim();
+      const pageId = document.getElementById('fbPageId').value.trim();
+      if (!token || !pageId) {
+        document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Please enter both token and page ID.</span>';
+        return;
+      }
+      document.getElementById('tokenStatus').innerHTML = '<span class="text-yellow-400">Validating...</span>';
+      const valid = await validateFacebookToken(token, pageId);
+      if (valid) {
+        document.getElementById('tokenStatus').innerHTML = '<span class="text-green-400">Token valid.</span>';
+      } else {
+        document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Invalid token or page ID.</span>';
+      }
     });
-  } catch {
-    el.innerHTML = '<div class="text-red-600">Failed to fetch posts.</div>';
-  }
-}
-fetchPostHistory();
-</script>
+  </script>
 </body>
 </html>
