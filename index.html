@@ -993,13 +993,22 @@
         const dayTypeCounts = [];
         for (let i = 0; i < 30; i++) {
             const date = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
-            const dayStr = date.toISOString().slice(0, 10);
+            // Generate dayStr using local date components
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+            const day = String(date.getDate()).padStart(2, '0');
+            const dayStr = `${year}-${month}-${day}`;
             // Count posts for this day by type
-            const counts = { date: dayStr, total: 0 };
+            const counts = { date: dayStr, total: 0 }; // Use local date string for the counts object key as well
             postTypes.forEach(type => counts[type] = 0);
             posts.forEach(post => {
                 if (post.time instanceof Date && !isNaN(post.time.getTime())) {
-                    const postDateStr = post.time.toISOString().slice(0, 10);
+                    // Convert post time to local YYYY-MM-DD string for comparison
+                    const year = post.time.getFullYear();
+                    const month = String(post.time.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+                    const day = String(post.time.getDate()).padStart(2, '0');
+                    const postDateStr = `${year}-${month}-${day}`;
+
                     if (postDateStr === dayStr) {
                         const t = postTypes.includes(post.type) ? post.type : 'other';
                         counts[t]++;
