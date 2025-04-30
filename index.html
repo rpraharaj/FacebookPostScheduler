@@ -2,256 +2,608 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Facebook Post Scheduler</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    /* Add subtle animation for loading */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #3b82f6; /* blue-600 */
+      border-radius: 50%;
+      width: 1.5rem;
+      height: 1.5rem;
+      animation: spin 1s linear infinite;
+    }
+    /* Ensure charts are responsive */
+    canvas {
+        max-width: 100%;
+        height: auto !important; /* Override inline height for responsiveness */
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-  <div class="flex min-h-screen">
-    <!-- Sidebar -->
-    <aside class="w-72 bg-gray-800 p-6 flex flex-col gap-6 border-r border-gray-700">
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+  <div class="flex flex-col md:flex-row min-h-screen">
+    <aside class="w-full md:w-72 bg-gray-800 p-4 md:p-6 flex flex-col gap-6 border-b md:border-b-0 md:border-r border-gray-700">
       <div>
-        <h2 class="text-lg font-bold mb-2">Facebook Credentials</h2>
+        <h2 class="text-lg font-bold mb-2 flex items-center gap-2"><i class="fas fa-key text-yellow-400"></i> Facebook Credentials</h2>
         <label class="block text-gray-300 text-sm mb-1" for="fbAccessToken">Access Token</label>
-        <input id="fbAccessToken" type="text" placeholder="Enter Facebook Access Token" class="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600 text-gray-100 mb-2">
+        <input id="fbAccessToken" type="password" placeholder="Enter Facebook Access Token" class="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600 text-gray-100 mb-2">
         <label class="block text-gray-300 text-sm mb-1" for="fbPageId">Page ID</label>
         <input id="fbPageId" type="text" placeholder="Enter Facebook Page ID" class="w-full px-2 py-1 rounded bg-gray-700 border border-gray-600 text-gray-100 mb-2">
-        <button id="validateBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded mt-2">Validate & Save</button>
-        <div id="tokenStatus" class="text-xs mt-2"></div>
-      </div>
+        <button id="validateBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded mt-2 flex items-center justify-center gap-2">
+          <i class="fas fa-check-circle"></i> Validate & Save
+        </button>
+        <div id="tokenStatus" class="text-xs mt-2 h-4"></div> </div>
       <div>
-        <h2 class="text-lg font-bold mb-2">Post Type</h2>
+        <h2 class="text-lg font-bold mb-2 flex items-center gap-2"><i class="fas fa-pen-fancy text-purple-400"></i> Post Type</h2>
         <nav class="flex flex-col gap-2">
-          <button type="button" data-type="text" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Text Post</button>
-          <button type="button" data-type="image" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Image Post</button>
-          <button type="button" data-type="link" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Link Post</button>
-          <button type="button" data-type="video" class="post-type-btn bg-gray-700 hover:bg-blue-700 rounded px-3 py-1 text-left">Video Post</button>
+          <button type="button" data-type="text" class="post-type-btn bg-blue-700 hover:bg-blue-600 rounded px-3 py-1 text-left flex items-center gap-2"><i class="fas fa-font w-4"></i> Text Post</button>
+          <button type="button" data-type="image" class="post-type-btn bg-gray-700 hover:bg-blue-600 rounded px-3 py-1 text-left flex items-center gap-2"><i class="fas fa-image w-4"></i> Image Post</button>
+          <button type="button" data-type="link" class="post-type-btn bg-gray-700 hover:bg-blue-600 rounded px-3 py-1 text-left flex items-center gap-2"><i class="fas fa-link w-4"></i> Link Post</button>
+          <button type="button" data-type="video" class="post-type-btn bg-gray-700 hover:bg-blue-600 rounded px-3 py-1 text-left flex items-center gap-2"><i class="fas fa-video w-4"></i> Video Post</button>
         </nav>
       </div>
+      <hr class="my-2 border-gray-700">
+      <a href="#" id="openAnalyticsModal" class="text-blue-400 hover:underline font-semibold flex items-center gap-2"><i class="fas fa-chart-line"></i> Post Analytics</a>
     </aside>
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col p-8 gap-8">
-      <!-- Post Composer -->
-      <section class="bg-gray-800 rounded-lg p-6 mb-4 shadow">
-        <h2 class="text-xl font-bold mb-4">Post Composer</h2>
+
+    <main class="flex-1 flex flex-col p-4 md:p-8 gap-6 md:gap-8 overflow-y-auto" id="mainContent">
+
+      <section id="composerSection" class="bg-gray-800 rounded-lg p-4 md:p-6 shadow-md">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-edit text-green-400"></i> Post Composer</h2>
         <form id="composerForm" class="flex flex-col gap-4">
-          <textarea id="composerMessage" rows="3" placeholder="Write your post..." class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-gray-100"></textarea>
-          <div id="composerImageFields" class="hidden flex flex-col gap-2">
-            <label class="text-gray-300">Choose Image(s)</label>
-            <input id="composerImages" type="file" accept="image/*" multiple class="bg-gray-700 border border-gray-600 rounded text-gray-100">
+          <textarea id="composerMessage" rows="4" placeholder="Write your post..." class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+
+          <div id="composerImageFields" class="hidden flex flex-col gap-2 border-t border-gray-700 pt-3">
+            <label class="text-gray-300 font-medium flex items-center gap-2"><i class="fas fa-images text-blue-400"></i> Choose Image(s)</label>
+            <input id="composerImages" type="file" accept="image/*" multiple class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
           </div>
-          <div id="composerLinkFields" class="hidden flex flex-col gap-2">
-            <label class="text-gray-300">Link URL</label>
-            <input id="composerLinkUrl" type="url" placeholder="https://example.com" class="bg-gray-700 border border-gray-600 rounded text-gray-100">
-            <label class="text-gray-300">(Optional) Thumbnail Image</label>
-            <input id="composerLinkImage" type="file" accept="image/*" class="bg-gray-700 border border-gray-600 rounded text-gray-100">
+
+          <div id="composerLinkFields" class="hidden flex flex-col gap-2 border-t border-gray-700 pt-3">
+            <label class="text-gray-300 font-medium flex items-center gap-2"><i class="fas fa-paperclip text-orange-400"></i> Link Details</label>
+            <input id="composerLinkUrl" type="url" placeholder="https://example.com" class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+          <div id="composerVideoFields" class="hidden flex flex-col gap-2 border-t border-gray-700 pt-3">
+            <label class="text-gray-300 font-medium flex items-center gap-2"><i class="fas fa-film text-red-400"></i> Choose Video</label>
+            <input id="composerVideos" type="file" accept="video/*" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
           </div>
-          <div id="composerVideoFields" class="hidden flex flex-col gap-2">
-            <label class="text-gray-300">Choose Video(s)</label>
-            <input id="composerVideos" type="file" accept="video/*" multiple class="bg-gray-700 border border-gray-600 rounded text-gray-100">
+
+          <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap border-t border-gray-700 pt-3">
+            <div class="flex items-center">
+              <input id="postNow" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
+              <label for="postNow" class="text-gray-300">Post Now</label>
+            </div>
+            <div id="scheduleOptions" class="flex flex-col sm:flex-row gap-2 items-start sm:items-center flex-wrap">
+                <span class="text-gray-400">Schedule for:</span>
+                <input id="scheduleTime" type="datetime-local" class="bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input id="gapMins" type="number" min="1" placeholder="Gap (mins)" title="Gap between multiple posts (images/videos/CSV rows)" class="bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1 w-24 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
           </div>
-          <div class="flex gap-4 items-center flex-wrap">
-            <input id="postNow" type="checkbox" class="mr-2">
-            <label for="postNow" class="text-gray-300">Post Now</label>
-            <span class="ml-6 text-gray-400">Schedule for:</span>
-            <input id="scheduleTime" type="datetime-local" class="bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1">
-            <select id="timezone" class="ml-2 bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1">
-              <option value="Asia/Calcutta">Asia/Calcutta</option>
-              <option value="UTC">UTC</option>
-              <option value="America/New_York">America/New_York</option>
-              <option value="Europe/London">Europe/London</option>
-            </select>
-            <input id="gapMins" type="number" min="1" placeholder="Gap (mins)" class="ml-2 bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1 w-24">
-          </div>
-          <div class="flex gap-2 flex-wrap">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Publish to Facebook</button>
-            <button id="importCsv" type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded hidden">Import CSV</button>
+
+          <div class="flex gap-2 flex-wrap border-t border-gray-700 pt-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2">
+              <i class="fab fa-facebook-f"></i> Publish to Facebook
+            </button>
+            <button id="importCsv" type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded hidden flex items-center gap-2">
+              <i class="fas fa-file-csv"></i> Import CSV
+            </button>
           </div>
         </form>
       </section>
-      <!-- Post Preview -->
-      <section class="bg-gray-800 rounded-lg p-4 mb-4">
-        <h3 class="text-lg font-semibold mb-2">Post Preview</h3>
-        <div id="postPreview" class="bg-gray-900 rounded p-3 min-h-[60px] text-gray-300"></div>
+
+      <section class="bg-gray-800 rounded-lg p-4 shadow-md" id="previewSection">
+        <h3 class="text-lg font-semibold mb-2 flex items-center gap-2"><i class="fas fa-eye text-teal-400"></i> Post Preview</h3>
+        <div id="postPreview" class="bg-gray-900 rounded p-3 min-h-[60px] text-gray-300 border border-gray-700">Select post type and enter content...</div>
       </section>
-      <!-- Post History & Logs -->
-      <section class="bg-gray-800 rounded-lg p-4 flex-1">
-        <h3 class="text-lg font-semibold mb-2">Post History & Logs</h3>
-        <div id="postHistory" class="mb-4 max-h-60 overflow-y-auto"></div>
-        <div id="logMessages" class="bg-blue-950 p-3 rounded text-gray-300 text-sm min-h-[40px]"></div>
+
+      <section class="bg-gray-800 rounded-lg p-4 shadow-md flex-1 flex flex-col" id="historySection">
+        <h3 class="text-lg font-semibold mb-2 flex items-center gap-2"><i class="fas fa-history text-indigo-400"></i> Post History & Logs (Local)</h3>
+        <div id="postHistory" class="mb-4 max-h-60 overflow-y-auto border border-gray-700 rounded p-2 flex-1">
+          <p class="text-gray-500 text-sm">No local history yet.</p>
+        </div>
+        <h4 class="text-md font-semibold mb-1 mt-2 flex items-center gap-2"><i class="fas fa-terminal text-gray-400"></i> Log Messages</h4>
+        <div id="logMessages" class="bg-gray-900 p-3 rounded text-gray-300 text-sm min-h-[80px] max-h-40 overflow-y-auto border border-gray-700">
+          </div>
+      </section>
+
+      <section id="analyticsPanel" class="hidden bg-gray-800 rounded-lg p-4 md:p-6 shadow-md w-full">
+        <div class="relative">
+           <button class="absolute top-0 left-0 text-gray-400 hover:text-white text-lg bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full z-10" onclick="showMainView()" title="Back to Composer">
+             <i class="fas fa-arrow-left"></i>
+           </button>
+          <h2 class="text-2xl font-bold mb-4 text-blue-300 text-center flex items-center justify-center gap-2"><i class="fas fa-chart-pie"></i> Post Analytics Dashboard</h2>
+
+          <div id="analyticsMessage" class="text-center p-4 mb-4 rounded bg-gray-700 hidden">
+             <div class="flex justify-center items-center gap-2">
+                <div id="analyticsSpinner" class="spinner hidden"></div>
+                <span id="analyticsStatusText"></span>
+             </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row justify-center gap-4 mb-6">
+            <button id="analyticsPastBtn" class="analyticsTabBtn bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2 justify-center"><i class="fas fa-calendar-check"></i> Past 30 Days</button>
+            <button id="analyticsFutureBtn" class="analyticsTabBtn bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded flex items-center gap-2 justify-center"><i class="fas fa-calendar-alt"></i> Next 30 Days (Scheduled)</button>
+            <button id="analyticsAllFutureBtn" class="analyticsTabBtn bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded flex items-center gap-2 justify-center"><i class="fas fa-table"></i> Next 30 Days (All Details)</button>
+          </div>
+
+          <div class="overflow-x-auto bg-gray-900 rounded-lg shadow">
+            <table class="w-full text-left text-sm text-gray-200">
+              <thead class="bg-gray-700 text-xs uppercase text-gray-400" id="analyticsTableHead">
+                <!-- Table headers will be dynamically set -->
+              </thead>
+              <tbody id="analyticsPostTableBody" class="divide-y divide-gray-700">
+                <tr><td colspan="7" class="text-center py-4 text-gray-500">Select a period to load data.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
       </section>
     </main>
   </div>
+
   <script>
-    // --- UI State ---
+    // --- Global Variables & UI State ---
     let currentPostType = 'text';
-    let postHistory = [];
-    let csvTextRows = null;
+    let postHistory = []; // Local history for posts *made by this tool*
+    let csvTextRows = null; // For CSV import
+    const FB_API_VERSION = 'v21.0'; // Use a specific API version
+
+    // --- DOM Elements ---
+    const composerSection = document.getElementById('composerSection');
+    const previewSection = document.getElementById('previewSection');
+    const historySection = document.getElementById('historySection');
+    const analyticsPanel = document.getElementById('analyticsPanel');
+    const logDiv = document.getElementById('logMessages');
+    const postHistoryContainer = document.getElementById('postHistory');
+    const fbAccessTokenInput = document.getElementById('fbAccessToken');
+    const fbPageIdInput = document.getElementById('fbPageId');
+    const tokenStatusDiv = document.getElementById('tokenStatus');
+    const scheduleTimeInput = document.getElementById('scheduleTime');
+    const postNowCheckbox = document.getElementById('postNow');
+    const scheduleOptionsDiv = document.getElementById('scheduleOptions');
+    const analyticsMessageDiv = document.getElementById('analyticsMessage');
+    const analyticsStatusText = document.getElementById('analyticsStatusText');
+    const analyticsSpinner = document.getElementById('analyticsSpinner');
+    const analyticsPostTableBody = document.getElementById('analyticsPostTableBody');
+
+    // --- Persistent History Storage (Local Actions Only) ---
+    function saveHistoryToStorage() {
+      try {
+        localStorage.setItem('fbPostHistory', JSON.stringify(postHistory));
+      } catch (e) {
+        console.error("Error saving history to localStorage:", e);
+        logMessage('<span class="text-red-400">Error saving local history. Storage might be full.</span>');
+      }
+    }
+
+    function loadHistoryFromStorage() {
+      const data = localStorage.getItem('fbPostHistory');
+      if (data) {
+        try {
+          postHistory = JSON.parse(data);
+          // Ensure dates are Date objects
+          postHistory.forEach(p => {
+              if (p.time && !(p.time instanceof Date)) {
+                  p.time = new Date(p.time);
+              }
+          });
+        } catch (e) {
+          console.error("Error parsing history from localStorage:", e);
+          postHistory = [];
+          localStorage.removeItem('fbPostHistory'); // Clear corrupted data
+        }
+      } else {
+          postHistory = [];
+      }
+    }
+
+    // --- Initialize ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadHistoryFromStorage();
+        renderLocalHistory(); // Render local history on load
+        setPostType('text'); // Set initial post type
+        updateImportCsvVisibility();
+        updateScheduleOptionsVisibility(); // Initial check for schedule options
+
+        // Load saved credentials if they exist
+        fbAccessTokenInput.value = localStorage.getItem('fbAccessToken') || '';
+        fbPageIdInput.value = localStorage.getItem('fbPageId') || '';
+        if (fbAccessTokenInput.value && fbPageIdInput.value) {
+            validateCredentials(false); // Validate silently on load
+        }
+    });
+
+
     // --- Sidebar Post Type Selection ---
     document.querySelectorAll('.post-type-btn').forEach(btn => {
       btn.addEventListener('click', function() {
-        document.querySelectorAll('.post-type-btn').forEach(b => b.classList.remove('bg-blue-700'));
+        document.querySelectorAll('.post-type-btn').forEach(b => {
+            b.classList.remove('bg-blue-700');
+            b.classList.add('bg-gray-700', 'hover:bg-blue-600');
+        });
         this.classList.add('bg-blue-700');
+        this.classList.remove('bg-gray-700', 'hover:bg-blue-600');
         setPostType(this.dataset.type);
+        showMainView(); // Ensure main view is shown when changing type
       });
     });
+
     function setPostType(type) {
       currentPostType = type;
+      // Toggle visibility of specific composer fields
       document.getElementById('composerImageFields').classList.toggle('hidden', type !== 'image');
       document.getElementById('composerLinkFields').classList.toggle('hidden', type !== 'link');
       document.getElementById('composerVideoFields').classList.toggle('hidden', type !== 'video');
-      // Optionally reset preview
-      updatePreview();
+      // Show/hide CSV import button
       updateImportCsvVisibility();
+      // Update the preview
+      updatePreview();
     }
-    setPostType('text');
-    // Show/hide Import CSV button based on post type
+
     function updateImportCsvVisibility() {
       const importCsvBtn = document.getElementById('importCsv');
-      if (currentPostType === 'text') {
-        importCsvBtn.classList.remove('hidden');
-      } else {
-        importCsvBtn.classList.add('hidden');
-      }
+      importCsvBtn.classList.toggle('hidden', currentPostType !== 'text');
     }
+
     // --- Composer Interactivity ---
     document.getElementById('composerForm').addEventListener('input', updatePreview);
-    document.getElementById('composerForm').addEventListener('change', updatePreview);
+    document.getElementById('composerForm').addEventListener('change', updatePreview); // For file inputs
+
     function updatePreview() {
       const msg = document.getElementById('composerMessage').value;
-      let html = `<div class='mb-2'><b>Type:</b> ${currentPostType.charAt(0).toUpperCase()+currentPostType.slice(1)} Post</div>`;
-      if (msg) html += `<div class='mb-2'><b>Message:</b> ${msg}</div>`;
+      let html = `<div class='mb-2 text-sm text-gray-400'>Preview:</div>`;
+      html += `<div class='mb-2'><b>Type:</b> <span class="capitalize">${currentPostType}</span> Post</div>`;
+      if (msg) html += `<div class='mb-2'><b>Message:</b><br><span class="whitespace-pre-wrap">${escapeHtml(msg)}</span></div>`;
+
       if (currentPostType === 'image') {
         const files = document.getElementById('composerImages').files;
-        if (files.length) html += `<div><b>Images:</b> ${Array.from(files).map(f=>f.name).join(', ')}</div>`;
-      }
-      if (currentPostType === 'link') {
+        if (files.length) html += `<div><b>Images:</b> ${Array.from(files).map(f => escapeHtml(f.name)).join(', ')}</div>`;
+      } else if (currentPostType === 'link') {
         const url = document.getElementById('composerLinkUrl').value;
-        if (url) html += `<div><b>Link:</b> ${url}</div>`;
-      }
-      if (currentPostType === 'video') {
+        if (url) html += `<div><b>Link:</b> ${escapeHtml(url)}</div>`;
+      } else if (currentPostType === 'video') {
         const files = document.getElementById('composerVideos').files;
-        if (files.length) html += `<div><b>Videos:</b> ${Array.from(files).map(f=>f.name).join(', ')}</div>`;
+        if (files.length) html += `<div><b>Videos:</b> ${Array.from(files).map(f => escapeHtml(f.name)).join(', ')}</div>`;
       }
+
       document.getElementById('postPreview').innerHTML = html;
     }
-    // --- History & Logs ---
-    function addHistoryEntry(entry) {
+
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+     }
+
+    // --- Scheduling Options Visibility ---
+    postNowCheckbox.addEventListener('change', updateScheduleOptionsVisibility);
+
+    function updateScheduleOptionsVisibility() {
+        scheduleOptionsDiv.classList.toggle('hidden', postNowCheckbox.checked);
+        if (!postNowCheckbox.checked && !scheduleTimeInput.value) {
+            // Set default schedule time to 30 mins in the future if switching to schedule
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 30);
+            now.setSeconds(0, 0); // Clear seconds/ms
+            scheduleTimeInput.value = now.toISOString().slice(0, 16);
+        }
+    }
+
+
+    // --- Local History & Logs ---
+    function addLocalHistoryEntry(entry) {
+      const now = new Date();
+      // Ensure entry.time is a Date object
+      let postDate = entry.time instanceof Date ? entry.time : new Date(entry.time);
+
+      // Determine status based on time relative to now *at the moment of adding*
+      entry.status = postDate <= now ? 'Published' : 'Scheduled';
+      entry.time = postDate; // Store as Date object
+
+      // Add other necessary fields if missing
+      entry.id = entry.id || `local-${Date.now()}`; // Use timestamp if no FB ID
+      entry.type = entry.type || currentPostType;
+      entry.msg = entry.msg || document.getElementById('composerMessage').value.trim();
+
+      // Add to the start of the array and limit history size (e.g., 100 entries)
       postHistory.unshift(entry);
-      renderHistory();
+      if (postHistory.length > 100) {
+          postHistory.pop();
+      }
+
+      saveHistoryToStorage();
+      renderLocalHistory();
     }
-    function renderHistory() {
-      const container = document.getElementById('postHistory');
-      container.innerHTML = postHistory.map(entry =>
-        `<div class='bg-gray-700 rounded mb-2 p-2 flex flex-col gap-1'>
-          <div class='text-xs text-gray-400'>${entry.time} | ${entry.type} | <span class='text-blue-400 cursor-pointer' onclick='navigator.clipboard.writeText("${entry.id}")'>Copy ID</span> | <span class='text-red-400 cursor-pointer' onclick='removeHistoryEntry("${entry.id}")'>Delete</span></div>
-          <div>${entry.msg}</div>
-        </div>`
-      ).join('');
-    }
-    window.removeHistoryEntry = function(id) {
+
+    window.removeLocalHistoryEntry = function(id) {
       postHistory = postHistory.filter(e => e.id !== id);
-      renderHistory();
+      saveHistoryToStorage();
+      renderLocalHistory();
+      logMessage(`Removed local history entry: ${id}`);
     }
+
+    // Renders only the locally stored history
+    function renderLocalHistory() {
+      if (!postHistoryContainer) return; // Ensure container exists
+
+      if (postHistory.length === 0) {
+          postHistoryContainer.innerHTML = '<p class="text-gray-500 text-sm p-4 text-center">No local history yet.</p>';
+          return;
+      }
+
+      postHistoryContainer.innerHTML = postHistory.map(entry => {
+        const postDate = entry.time instanceof Date ? entry.time : new Date(entry.time);
+        // Check if date is valid before formatting
+        const dateStr = !isNaN(postDate.getTime()) ? postDate.toLocaleString() : 'Invalid Date';
+        const isPublished = entry.status === 'Published'; // Check status field
+        const statusClass = isPublished ? 'text-green-400' : 'text-yellow-400';
+        const shortMsg = entry.msg ? escapeHtml(entry.msg.slice(0, 50)) + (entry.msg.length > 50 ? '…' : '') : '[No Message]';
+
+        return `<div class='bg-gray-700 rounded mb-2 p-2 flex flex-col gap-1 text-sm'>
+           <div class='flex justify-between items-center text-xs text-gray-400'>
+             <span>${dateStr} | <span class="capitalize">${entry.type}</span> | <span class="${statusClass}">${entry.status}</span></span>
+             <div>
+               ${entry.id && !entry.id.startsWith('local-') ? `<span class='text-blue-400 cursor-pointer hover:underline mr-2' onclick='navigator.clipboard.writeText("${entry.id}")' title="Copy Facebook Post ID"><i class="fas fa-copy"></i> ID</span>` : ''}
+               <span class='text-red-400 cursor-pointer hover:underline' onclick='removeLocalHistoryEntry("${entry.id}")' title="Delete Local Entry"><i class="fas fa-trash"></i> Delete</span>
+             </div>
+           </div>
+           <div class="text-gray-200">${shortMsg}</div>
+         </div>`;
+      }).join('');
+    }
+
     // --- Log ---
-    function logMessage(msg) {
-      const logDiv = document.getElementById('logMessages');
-      logDiv.innerHTML += `<div>${msg}</div>`;
-      logDiv.scrollTop = logDiv.scrollHeight;
+    function logMessage(msg, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        let icon = '';
+        let colorClass = 'text-gray-300'; // Default info
+
+        switch (type) {
+            case 'success':
+                colorClass = 'text-green-400';
+                icon = '<i class="fas fa-check-circle mr-1"></i>';
+                break;
+            case 'error':
+                colorClass = 'text-red-400';
+                icon = '<i class="fas fa-exclamation-triangle mr-1"></i>';
+                break;
+            case 'warning':
+                colorClass = 'text-yellow-400';
+                icon = '<i class="fas fa-exclamation-circle mr-1"></i>';
+                break;
+            case 'api':
+                 colorClass = 'text-blue-400';
+                 icon = '<i class="fas fa-network-wired mr-1"></i>';
+                 break;
+        }
+
+        logDiv.innerHTML += `<div class="${colorClass} text-xs mb-1">${icon}[${timestamp}] ${msg}</div>`;
+        logDiv.scrollTop = logDiv.scrollHeight; // Auto-scroll to bottom
     }
+
     function clearLog() {
-      document.getElementById('logMessages').innerHTML = '';
-    }
-    // --- Facebook Posting Logic (FULL IMPLEMENTATION) ---
-    async function validateFacebookToken(token, pageId) {
-      try {
-        const url = `https://graph.facebook.com/v21.0/debug_token?input_token=${token}&access_token=${token}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        return res.ok && data.data && data.data.is_valid;
-      } catch (e) { return false; }
+      logDiv.innerHTML = '';
     }
 
-    async function createTextPost(message, scheduleTime, fbAccessToken, fbPageId) {
-      const url = `https://graph.facebook.com/v21.0/${fbPageId}/feed`;
-      const params = new URLSearchParams({
-        message,
-        access_token: fbAccessToken
-      });
-      if (scheduleTime) {
-        params.append('published', 'false');
-        params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime()/1000));
-      }
-      const res = await fetch(url, { method: 'POST', body: params });
-      const data = await res.json();
-      if (res.ok && data.id) return data.id;
-      throw new Error(data.error?.message || 'Unknown error');
+    // --- Facebook API Interaction ---
+
+    // Function to make authenticated FB Graph API calls
+    async function callFbApi(endpoint, method = 'GET', params = {}, body = null, isFormData = false) {
+        const fbAccessToken = fbAccessTokenInput.value.trim();
+        const fbPageId = fbPageIdInput.value.trim(); // Needed for page-specific endpoints
+
+        if (!fbAccessToken) {
+            throw new Error('Facebook Access Token is missing.');
+        }
+         // Add access token to params for GET or body for POST/PUT/DELETE
+        if (method === 'GET') {
+            params.access_token = fbAccessToken;
+        } else if (body && !isFormData) {
+            // Assuming body is an object for JSON or URLSearchParams
+             if (body instanceof URLSearchParams) {
+                 body.append('access_token', fbAccessToken);
+             } else if (typeof body === 'object') {
+                 body.access_token = fbAccessToken; // Add token if body is a plain object
+             }
+        } else if (isFormData && body instanceof FormData) {
+             body.append('access_token', fbAccessToken);
+        }
+
+
+        const baseUrl = `https://graph.facebook.com/${FB_API_VERSION}`;
+        let url = `${baseUrl}/${endpoint}`;
+
+        const options = { method };
+
+        if (method === 'GET') {
+            const queryString = new URLSearchParams(params).toString();
+            if (queryString) url += `?${queryString}`;
+        } else { // POST, PUT, DELETE etc.
+            if (isFormData) {
+                options.body = body; // FormData object
+            } else if (body instanceof URLSearchParams) {
+                 options.body = body;
+                 options.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+            } else if (body) {
+                options.body = JSON.stringify(body); // Assume JSON body
+                options.headers = { 'Content-Type': 'application/json' };
+            }
+        }
+
+        logMessage(`API Call: ${method} ${url.replace(fbAccessToken, '***TOKEN***')}`, 'api'); // Log without token
+
+        try {
+            const response = await fetch(url, options);
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error("Facebook API Error:", data);
+                const errorMsg = data.error?.message || `HTTP error! status: ${response.status}`;
+                const errorType = data.error?.type;
+                const errorCode = data.error?.code;
+                const errorSubcode = data.error?.error_subcode;
+
+                 // Handle specific errors like permissions or expired tokens
+                if (errorCode === 190) { // Authentication errors
+                    tokenStatusDiv.innerHTML = `<span class="text-red-400">Token expired or invalid. Please re-validate.</span>`;
+                } else if (errorCode === 10 || errorCode === 200) { // Permission errors
+                     tokenStatusDiv.innerHTML = `<span class="text-red-400">Permission error. Check token permissions.</span>`;
+                }
+
+                throw new Error(`API Error (${errorType || 'Unknown'} - ${errorCode || 'N/A'}): ${errorMsg}`);
+            }
+            return data; // Success
+        } catch (error) {
+            console.error("Fetch error:", error);
+             // Rethrow network or parsing errors
+            throw new Error(error.message || 'Network error or invalid JSON response.');
+        }
     }
 
-    async function uploadPhotoAndGetId(file, fbAccessToken, fbPageId) {
-      const url = `https://graph.facebook.com/v21.0/${fbPageId}/photos`;
-      const formData = new FormData();
-      formData.append('source', file);
-      formData.append('access_token', fbAccessToken);
-      formData.append('published', 'false');
-      const res = await fetch(url, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (res.ok && data.id) return data.id;
-      throw new Error(data.error?.message || 'Unknown error');
+
+    // Validate Token and Page ID (also saves valid credentials)
+    async function validateCredentials(showMessages = true) {
+        const token = fbAccessTokenInput.value.trim();
+        const pageId = fbPageIdInput.value.trim();
+
+        if (!token || !pageId) {
+            if (showMessages) tokenStatusDiv.innerHTML = '<span class="text-red-400">Please enter both token and page ID.</span>';
+            return false;
+        }
+
+        if (showMessages) tokenStatusDiv.innerHTML = '<span class="text-yellow-400">Validating...</span>';
+
+        try {
+            // 1. Validate the token itself
+            await callFbApi('debug_token', 'GET', { input_token: token });
+
+            // 2. Check if the token can access the specific page (requires pages_show_list permission usually)
+            // A simple check is to try fetching basic page info
+            await callFbApi(`${pageId}`, 'GET', { fields: 'id,name' });
+
+            if (showMessages) tokenStatusDiv.innerHTML = '<span class="text-green-400">Token & Page ID are valid.</span>';
+            // Save valid credentials
+            localStorage.setItem('fbAccessToken', token);
+            localStorage.setItem('fbPageId', pageId);
+            return true;
+        } catch (error) {
+            console.error("Validation Error:", error);
+            if (showMessages) tokenStatusDiv.innerHTML = `<span class="text-red-400">Validation failed: ${error.message}</span>`;
+            // Clear saved credentials on failure
+            localStorage.removeItem('fbAccessToken');
+            localStorage.removeItem('fbPageId');
+            return false;
+        }
     }
 
-    async function createImagePost(message, imageId, scheduleTime, fbAccessToken, fbPageId) {
-      const url = `https://graph.facebook.com/v21.0/${fbPageId}/feed`;
-      const params = new URLSearchParams();
-      if (message) params.append('message', message);
-      params.append('attached_media[0]', JSON.stringify({ media_fbid: imageId }));
-      params.append('access_token', fbAccessToken);
-      if (scheduleTime) {
-        params.append('published', 'false');
-        params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime()/1000));
-      }
-      const res = await fetch(url, { method: 'POST', body: params });
-      const data = await res.json();
-      if (res.ok && data.id) return data.id;
-      throw new Error(data.error?.message || 'Unknown error');
+    document.getElementById('validateBtn').addEventListener('click', () => validateCredentials(true));
+
+    // --- Posting Functions ---
+
+    async function createTextPost(message, scheduleTime) {
+        const fbPageId = fbPageIdInput.value.trim();
+        const params = new URLSearchParams({ message });
+        if (scheduleTime) {
+            params.append('published', 'false');
+            params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime() / 1000));
+        }
+        const data = await callFbApi(`${fbPageId}/feed`, 'POST', {}, params);
+        return data.id; // Returns post ID
     }
 
-    async function createLinkPost(message, linkUrl, scheduleTime, fbAccessToken, fbPageId) {
-      const url = `https://graph.facebook.com/v21.0/${fbPageId}/feed`;
-      const params = new URLSearchParams({
-        link: linkUrl,
-        message,
-        access_token: fbAccessToken
-      });
-      if (scheduleTime) {
-        params.append('published', 'false');
-        params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime()/1000));
-      }
-      const res = await fetch(url, { method: 'POST', body: params });
-      const data = await res.json();
-      if (res.ok && data.id) return data.id;
-      throw new Error(data.error?.message || 'Unknown error');
+     async function uploadPhotoAndGetId(file) {
+        const fbPageId = fbPageIdInput.value.trim();
+        const formData = new FormData();
+        formData.append('source', file);
+        formData.append('published', 'false'); // Upload unpublished first
+        const data = await callFbApi(`${fbPageId}/photos`, 'POST', {}, formData, true);
+        return data.id; // Returns photo ID
     }
 
-    async function uploadVideoAndGetId(file, fbAccessToken, fbPageId) {
-      const url = `https://graph.facebook.com/v21.0/${fbPageId}/videos`;
-      const formData = new FormData();
-      formData.append('source', file);
-      formData.append('access_token', fbAccessToken);
-      formData.append('published', 'false');
-      const res = await fetch(url, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (res.ok && data.id) return data.id;
-      throw new Error(data.error?.message || 'Unknown error');
+    async function createImagePost(message, imageId, scheduleTime) {
+        const fbPageId = fbPageIdInput.value.trim();
+        const params = new URLSearchParams();
+        if (message) params.append('message', message);
+        params.append('attached_media[0]', JSON.stringify({ media_fbid: imageId }));
+        if (scheduleTime) {
+            params.append('published', 'false');
+            params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime() / 1000));
+        }
+        const data = await callFbApi(`${fbPageId}/feed`, 'POST', {}, params);
+        return data.id; // Returns post ID
     }
 
-    async function createVideoPost(message, videoId, scheduleTime, fbAccessToken, fbPageId) {
-      // Facebook auto-publishes video posts when uploaded, so just log
-      return videoId;
+     async function createLinkPost(message, linkUrl, scheduleTime) {
+        const fbPageId = fbPageIdInput.value.trim();
+        const params = new URLSearchParams({ link: linkUrl });
+        if (message) params.append('message', message);
+        if (scheduleTime) {
+            params.append('published', 'false');
+            params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime() / 1000));
+        }
+        const data = await callFbApi(`${fbPageId}/feed`, 'POST', {}, params);
+        return data.id; // Returns post ID
     }
 
+    // Video upload is more complex (resumable, requires initialization)
+    // This is a simplified version for smaller videos. Larger videos need the resumable upload API.
+    async function uploadVideoAndGetId(file, title = '', description = '') {
+        const fbPageId = fbPageIdInput.value.trim();
+        const formData = new FormData();
+        formData.append('source', file);
+        if (title) formData.append('title', title);
+        if (description) formData.append('description', description);
+        // Videos are uploaded and published/scheduled in one step usually
+        // formData.append('published', 'false'); // Cannot schedule directly with simple upload
+
+        logMessage('Initiating video upload... This might take a while.', 'info');
+        // Use the /videos edge for direct upload
+        const data = await callFbApi(`${fbPageId}/videos`, 'POST', {}, formData, true);
+        logMessage(`Video upload initiated. ID: ${data.id}. Facebook will process it.`, 'success');
+        return data.id; // Returns video ID
+    }
+
+     // Create a post referencing an already uploaded video (often not needed with direct video upload)
+     // Note: Scheduling video posts via API might require different permissions or approaches.
+     // The simple upload often publishes immediately. Scheduling might need the `scheduled_publish_time`
+     // parameter during the initial `/videos` POST if supported, or a separate `/feed` post referencing the video ID.
+     // For simplicity, this example assumes immediate publish or relies on FB processing time.
+    async function createVideoPostRef(message, videoId, scheduleTime) {
+         const fbPageId = fbPageIdInput.value.trim();
+         const params = new URLSearchParams();
+         if (message) params.append('message', message);
+         // Reference the video using attached_media
+         params.append('attached_media[0]', JSON.stringify({ media_fbid: videoId }));
+
+         // Scheduling might not work reliably this way for videos post-upload.
+         // It's better to schedule during the initial /videos POST if possible.
+         /*
+         if (scheduleTime) {
+             params.append('published', 'false');
+             params.append('scheduled_publish_time', Math.floor(new Date(scheduleTime).getTime() / 1000));
+         }
+         */
+         const data = await callFbApi(`${fbPageId}/feed`, 'POST', {}, params);
+         return data.id; // Returns post ID
+    }
+
+
+    // --- CSV Import ---
     document.getElementById('importCsv').addEventListener('click', function() {
       if (currentPostType !== 'text') {
-        logMessage('<span class="text-yellow-400">CSV import is only available for text posts.</span>');
+        logMessage('CSV import is only available for text posts.', 'warning');
         return;
       }
       const fileInput = document.createElement('input');
@@ -264,124 +616,686 @@
         const reader = new FileReader();
         reader.onload = function(event) {
           const text = event.target.result;
-          csvTextRows = text.split(/\r?\n/).filter(Boolean);
+          // Basic CSV parsing (split by newline, ignore empty lines)
+          // More robust parsing might be needed for quoted fields, etc.
+          csvTextRows = text.split(/\r?\n/).map(row => row.trim()).filter(Boolean);
           if (csvTextRows.length === 0) {
-            logMessage('<span class="text-red-400">CSV file is empty.</span>');
+            logMessage('CSV file is empty or invalid.', 'error');
+            csvTextRows = null; // Reset
             return;
           }
-          logMessage(`<span class='text-green-400'>CSV uploaded: <b>${csvTextRows.length}</b> rows loaded. Click <b>Publish to Facebook</b> to schedule these posts.</span>`);
+          logMessage(`CSV uploaded: <b>${csvTextRows.length}</b> text posts loaded. Configure scheduling and click <b>Publish to Facebook</b>.`, 'success');
+        };
+        reader.onerror = function() {
+            logMessage('Error reading CSV file.', 'error');
+            csvTextRows = null;
         };
         reader.readAsText(file);
       });
       document.body.appendChild(fileInput);
       fileInput.click();
+      // Clean up the input element
       setTimeout(() => document.body.removeChild(fileInput), 1000);
     });
 
+    // --- Form Submission (Publishing) ---
     document.getElementById('composerForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       clearLog();
-      const fbAccessToken = document.getElementById('fbAccessToken').value.trim();
-      const fbPageId = document.getElementById('fbPageId').value.trim();
+
+      const fbAccessToken = fbAccessTokenInput.value.trim();
+      const fbPageId = fbPageIdInput.value.trim();
       const msg = document.getElementById('composerMessage').value.trim();
-      const scheduleTime = document.getElementById('postNow').checked ? null : document.getElementById('scheduleTime').value;
+      const isPostNow = postNowCheckbox.checked;
+      const scheduleTimeString = scheduleTimeInput.value;
       const postType = currentPostType;
-      const gapMins = parseInt(document.getElementById('gapMins').value) || 0;
-      const now = new Date();
-      let minAllowed = new Date(now.getTime() + 20 * 60000);
-      if (!document.getElementById('postNow').checked) {
-        if (!scheduleTime) {
-          logMessage('<span class="text-red-400">Please select a schedule time.</span>');
-          return;
-        }
-        const sched = new Date(scheduleTime);
-        if (sched < minAllowed) {
-          logMessage('<span class="text-red-400">Please select a schedule time at least 20 minutes in the future.</span>');
-          return;
-        }
-      }
-      try {
-        if (!fbAccessToken || !fbPageId) throw new Error('Please enter Facebook credentials.');
-        logMessage('Validating Facebook credentials...');
-        if (!(await validateFacebookToken(fbAccessToken, fbPageId))) throw new Error('Invalid Facebook access token.');
-        logMessage('Facebook access token is valid.');
-        let postId;
-        if (postType === 'text') {
-          if (csvTextRows && csvTextRows.length > 0) {
-            let scheduledTime = scheduleTime ? new Date(scheduleTime) : new Date();
-            for (let i = 0; i < csvTextRows.length; i++) {
-              const message = csvTextRows[i];
-              if (!message.trim()) continue;
-              try {
-                const postIdRow = await createTextPost(message, scheduledTime, fbAccessToken, fbPageId);
-                addHistoryEntry({ id: postIdRow, time: scheduledTime.toLocaleString(), type: 'text', msg: message });
-                logMessage(`<b>Success:</b> Posted text from CSV. ID: ${postIdRow}`);
-              } catch (err) {
-                logMessage(`<span class='text-red-400'>Error posting row ${i+1}: ${err.message || err}</span>`);
-              }
-              if (gapMins && i < csvTextRows.length - 1) {
-                scheduledTime = new Date(scheduledTime.getTime() + gapMins * 60000);
-              }
-            }
-            csvTextRows = null; // Reset after posting
-            return;
-          } else {
-            postId = await createTextPost(msg, scheduleTime, fbAccessToken, fbPageId);
-          }
-        } else if (postType === 'image') {
-          const files = document.getElementById('composerImages').files;
-          if (!files.length) throw new Error('Please select at least one image.');
-          if (files.length > 1 && (!gapMins || gapMins < 1)) throw new Error('Please specify a gap (in minutes) for multiple image posts.');
-          let currentTime = scheduleTime ? new Date(scheduleTime) : new Date();
-          for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            logMessage(`Uploading image: ${file.name} ...`);
-            const imageId = await uploadPhotoAndGetId(file, fbAccessToken, fbPageId);
-            const scheduledTime = i === 0 ? currentTime : new Date(currentTime.getTime() + i * gapMins * 60000);
-            const postIdSingle = await createImagePost(msg, imageId, scheduledTime, fbAccessToken, fbPageId);
-            addHistoryEntry({ id: postIdSingle, time: scheduledTime.toLocaleString(), type: postType, msg: msg + ' (' + file.name + ')' });
-            logMessage(`<b>Success:</b> Posted image ${file.name} to Facebook. ID: ${postIdSingle}`);
-          }
-          postId = '(multiple image posts)';
-        } else if (postType === 'link') {
-          const linkUrl = document.getElementById('composerLinkUrl').value.trim();
-          if (!linkUrl) throw new Error('Please enter a link URL.');
-          postId = await createLinkPost(msg, linkUrl, scheduleTime, fbAccessToken, fbPageId);
-        } else if (postType === 'video') {
-          const files = document.getElementById('composerVideos').files;
-          if (!files.length) throw new Error('Please select at least one video.');
-          for (const file of files) {
-            logMessage(`Uploading video: ${file.name} ...`);
-            const videoId = await uploadVideoAndGetId(file, fbAccessToken, fbPageId);
-            await createVideoPost(msg, videoId, scheduleTime, fbAccessToken, fbPageId);
-          }
-          postId = '(multiple video posts)';
-        }
-        if (postId && typeof postId === 'string' && !postId.startsWith('(')) {
-          addHistoryEntry({ id: postId, time: new Date().toLocaleString(), type: postType, msg });
-          logMessage(`<b>Success:</b> Posted ${postType} to Facebook. ID: ${postId}`);
-        }
-      } catch (err) {
-        logMessage(`<span class='text-red-400'>${err.message || err}</span>`);
-      }
-    });
-    // --- Validate Button ---
-    document.getElementById('validateBtn').addEventListener('click', async function() {
-      const token = document.getElementById('fbAccessToken').value.trim();
-      const pageId = document.getElementById('fbPageId').value.trim();
-      if (!token || !pageId) {
-        document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Please enter both token and page ID.</span>';
+      const gapMins = parseInt(document.getElementById('gapMins').value) || 0; // Gap for multiple posts
+
+      logMessage('Starting post process...', 'info');
+
+      // --- Validation ---
+      if (!fbAccessToken || !fbPageId) {
+        logMessage('Please enter and validate Facebook credentials first.', 'error');
+        tokenStatusDiv.innerHTML = '<span class="text-red-400">Credentials missing.</span>';
         return;
       }
-      document.getElementById('tokenStatus').innerHTML = '<span class="text-yellow-400">Validating...</span>';
-      const valid = await validateFacebookToken(token, pageId);
-      if (valid) {
-        document.getElementById('tokenStatus').innerHTML = '<span class="text-green-400">Token valid.</span>';
-      } else {
-        document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Invalid token or page ID.</span>';
+
+      let scheduleTime = null;
+      if (!isPostNow) {
+        if (!scheduleTimeString) {
+          logMessage('Please select a schedule date and time.', 'error');
+          return;
+        }
+        scheduleTime = new Date(scheduleTimeString);
+        const minAllowedTime = new Date(Date.now() + 15 * 60 * 1000); // FB requires ~10-15 min minimum
+        if (scheduleTime < minAllowedTime) {
+          logMessage(`Schedule time must be at least 15 minutes in the future. Selected: ${scheduleTime.toLocaleString()}`, 'error');
+          return;
+        }
+      }
+
+      // Basic content validation
+      if (postType === 'text' && !msg && (!csvTextRows || csvTextRows.length === 0)) {
+          logMessage('Please enter a message or import a CSV for text posts.', 'error'); return;
+      }
+      if (postType === 'image' && document.getElementById('composerImages').files.length === 0) {
+          logMessage('Please select at least one image file.', 'error'); return;
+      }
+      if (postType === 'link' && !document.getElementById('composerLinkUrl').value.trim()) {
+          logMessage('Please enter a link URL.', 'error'); return;
+      }
+       if (postType === 'video' && document.getElementById('composerVideos').files.length === 0) {
+          logMessage('Please select a video file.', 'error'); return;
+      }
+
+       // Validate gap for multiple files/rows
+       const imageFiles = document.getElementById('composerImages').files;
+       const videoFiles = document.getElementById('composerVideos').files;
+       if ((postType === 'text' && csvTextRows && csvTextRows.length > 1 && !isPostNow && gapMins < 1) ||
+           (postType === 'image' && imageFiles.length > 1 && !isPostNow && gapMins < 1) ||
+           (postType === 'video' && videoFiles.length > 1 && !isPostNow && gapMins < 1)) {
+           logMessage('Please specify a positive gap (in minutes) when scheduling multiple posts/files.', 'error');
+           return;
+       }
+
+
+      // --- Posting Logic ---
+      try {
+        logMessage('Checking credentials validity...', 'info');
+        const isValid = await validateCredentials(false); // Silent validation check
+        if (!isValid) {
+            logMessage('Facebook credentials validation failed. Please check token and page ID.', 'error');
+            tokenStatusDiv.innerHTML = '<span class="text-red-400">Validation failed.</span>';
+            return;
+        }
+        logMessage('Credentials appear valid.', 'success');
+
+
+        let baseScheduleTime = scheduleTime ? new Date(scheduleTime.getTime()) : new Date(); // Use current time if 'Post Now'
+
+        if (postType === 'text') {
+          if (csvTextRows && csvTextRows.length > 0) {
+            logMessage(`Starting CSV post scheduling (${csvTextRows.length} posts)...`, 'info');
+            let currentScheduleTime = baseScheduleTime;
+            for (let i = 0; i < csvTextRows.length; i++) {
+              const rowMessage = csvTextRows[i];
+              if (!rowMessage.trim()) continue; // Skip empty rows
+
+              const postTime = isPostNow ? null : new Date(currentScheduleTime.getTime());
+              logMessage(`Posting CSV row ${i+1}: "${rowMessage.slice(0,30)}..." ${postTime ? `for ${postTime.toLocaleString()}` : 'now'}.`, 'info');
+
+              try {
+                const postId = await createTextPost(rowMessage, postTime);
+                addLocalHistoryEntry({ id: postId, time: postTime || new Date(), type: 'text', msg: rowMessage, status: postTime ? 'Scheduled' : 'Published' });
+                logMessage(`Success (Row ${i+1}): Post ${postId} ${postTime ? 'scheduled' : 'published'}.`, 'success');
+              } catch (err) {
+                logMessage(`Error posting CSV row ${i+1}: ${err.message || err}`, 'error');
+              }
+
+              // Increment schedule time for the next post if scheduling and gap is set
+              if (!isPostNow && gapMins > 0 && i < csvTextRows.length - 1) {
+                currentScheduleTime.setMinutes(currentScheduleTime.getMinutes() + gapMins);
+              }
+              await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between API calls
+            }
+            csvTextRows = null; // Clear CSV data after processing
+            logMessage('CSV processing complete.', 'info');
+          } else {
+            // Single text post
+            const postTime = isPostNow ? null : baseScheduleTime;
+            logMessage(`Posting single text post ${postTime ? `for ${postTime.toLocaleString()}` : 'now'}...`, 'info');
+            const postId = await createTextPost(msg, postTime);
+            addLocalHistoryEntry({ id: postId, time: postTime || new Date(), type: 'text', msg: msg, status: postTime ? 'Scheduled' : 'Published' });
+            logMessage(`Success: Text post ${postId} ${postTime ? 'scheduled' : 'published'}.`, 'success');
+          }
+        } else if (postType === 'image') {
+            logMessage(`Processing ${imageFiles.length} image(s)...`, 'info');
+            let currentScheduleTime = baseScheduleTime;
+            for (let i = 0; i < imageFiles.length; i++) {
+                const file = imageFiles[i];
+                const postTime = isPostNow ? null : new Date(currentScheduleTime.getTime());
+                logMessage(`Uploading image ${i+1}: ${file.name}...`, 'info');
+                try {
+                    const imageId = await uploadPhotoAndGetId(file);
+                    logMessage(`Image ${file.name} uploaded (ID: ${imageId}). Creating post ${postTime ? `for ${postTime.toLocaleString()}` : 'now'}...`, 'info');
+                    const postId = await createImagePost(msg, imageId, postTime);
+                    addLocalHistoryEntry({ id: postId, time: postTime || new Date(), type: 'image', msg: `${msg} (${file.name})`, status: postTime ? 'Scheduled' : 'Published' });
+                    logMessage(`Success (Image ${i+1}): Post ${postId} ${postTime ? 'scheduled' : 'published'}.`, 'success');
+                } catch (err) {
+                    logMessage(`Error processing image ${i+1} (${file.name}): ${err.message || err}`, 'error');
+                }
+
+                if (!isPostNow && gapMins > 0 && i < imageFiles.length - 1) {
+                    currentScheduleTime.setMinutes(currentScheduleTime.getMinutes() + gapMins);
+                }
+                 await new Promise(resolve => setTimeout(resolve, 1000)); // Delay for image processing/API limits
+            }
+            logMessage('Image processing complete.', 'info');
+            document.getElementById('composerImages').value = ''; // Clear file input
+        } else if (postType === 'link') {
+            const linkUrl = document.getElementById('composerLinkUrl').value.trim();
+            const postTime = isPostNow ? null : baseScheduleTime;
+            logMessage(`Posting link ${linkUrl} ${postTime ? `for ${postTime.toLocaleString()}` : 'now'}...`, 'info');
+            const postId = await createLinkPost(msg, linkUrl, postTime);
+            addLocalHistoryEntry({ id: postId, time: postTime || new Date(), type: 'link', msg: `${msg} [${linkUrl}]`, status: postTime ? 'Scheduled' : 'Published' });
+            logMessage(`Success: Link post ${postId} ${postTime ? 'scheduled' : 'published'}.`, 'success');
+        } else if (postType === 'video') {
+            // NOTE: Video scheduling is less reliable via simple API. Often publishes immediately after processing.
+            // The 'scheduleTime' might not be honored directly in this simplified flow.
+             logMessage(`Processing ${videoFiles.length} video(s)... (Note: Scheduling may depend on FB processing)`, 'warning');
+             let currentScheduleTime = baseScheduleTime; // Use for local history tracking
+             for (let i = 0; i < videoFiles.length; i++) {
+                 const file = videoFiles[i];
+                 const postTimeForHistory = isPostNow ? new Date() : new Date(currentScheduleTime.getTime()); // Time for local record
+                 logMessage(`Uploading video ${i+1}: ${file.name}... This may take time.`, 'info');
+                 try {
+                     // Simple upload - likely publishes after processing, scheduling not guaranteed here
+                     const videoId = await uploadVideoAndGetId(file, file.name, msg);
+                     // We might need a second call to create the post *if* upload doesn't publish
+                     // const postId = await createVideoPostRef(msg, videoId, scheduleTime); // If needed
+
+                     // Add to local history with the intended time, status might be inaccurate until FB confirms
+                     addLocalHistoryEntry({ id: videoId, time: postTimeForHistory, type: 'video', msg: `${msg} (${file.name})`, status: isPostNow ? 'Processing/Published' : 'Processing/Scheduled' });
+                     logMessage(`Success (Video ${i+1}): Upload initiated (ID: ${videoId}). Status depends on FB processing.`, 'success');
+                 } catch (err) {
+                     logMessage(`Error processing video ${i+1} (${file.name}): ${err.message || err}`, 'error');
+                 }
+
+                 if (!isPostNow && gapMins > 0 && i < videoFiles.length - 1) {
+                     currentScheduleTime.setMinutes(currentScheduleTime.getMinutes() + gapMins);
+                 }
+                 await new Promise(resolve => setTimeout(resolve, 2000)); // Longer delay for video uploads
+             }
+             logMessage('Video processing complete.', 'info');
+             document.getElementById('composerVideos').value = ''; // Clear file input
+        }
+
+        // Clear message field after successful posting (optional)
+        // document.getElementById('composerMessage').value = '';
+        // updatePreview();
+
+      } catch (err) {
+        logMessage(`Posting failed: ${err.message || err}`, 'error');
+      } finally {
+          // Maybe add a 'finished' log message
       }
     });
-    updateImportCsvVisibility();
+
+
+    // --- Analytics Panel Logic ---
+
+    function showAnalyticsLoading(message) {
+        analyticsMessageDiv.classList.remove('hidden');
+        analyticsSpinner.classList.remove('hidden');
+        analyticsStatusText.textContent = message;
+        analyticsStatusText.classList.remove('text-red-400'); // Ensure text is not red
+        // Clear previous results
+        analyticsPostTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Loading...</td></tr>';
+    }
+
+    function showAnalyticsError(message) {
+        analyticsMessageDiv.classList.remove('hidden');
+        analyticsSpinner.classList.add('hidden'); // Hide spinner on error
+        analyticsStatusText.textContent = `Error: ${message}`;
+        analyticsStatusText.classList.add('text-red-400'); // Make text red
+        analyticsPostTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-red-400">Failed to load data: ${message}</td></tr>`;
+    }
+
+     function hideAnalyticsMessage() {
+        analyticsMessageDiv.classList.add('hidden');
+        analyticsStatusText.textContent = '';
+        analyticsStatusText.classList.remove('text-red-400');
+    }
+
+    async function fetchFacebookPosts(period) {
+        const fbAccessToken = fbAccessTokenInput.value.trim();
+        const fbPageId = fbPageIdInput.value.trim();
+
+        if (!fbAccessToken || !fbPageId) {
+            throw new Error('Facebook credentials not set.');
+        }
+
+        const now = new Date();
+        let since, until, endpoint, statusFilter;
+        const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
+        let apiParams = {};
+        if (period === 'past') {
+            // Use /feed with since/until for efficiency
+            endpoint = `${fbPageId}/feed`;
+            since = Math.floor((now.getTime() - thirtyDaysInMillis) / 1000);
+            until = Math.floor(now.getTime() / 1000);
+            statusFilter = 'Published';
+            apiParams = { fields: 'id,message,created_time,attachments,permalink_url,is_published', since, until, limit: 50 };
+        } else if (period === 'future') { // Scheduled
+            endpoint = `${fbPageId}/scheduled_posts`;
+            since = Math.floor(now.getTime() / 1000);
+            until = Math.floor((now.getTime() + thirtyDaysInMillis) / 1000);
+            statusFilter = 'Scheduled';
+            apiParams = { fields: 'id,message,scheduled_publish_time,attachments,permalink_url', since, until, limit: 50 };
+        } else if (period === 'allfuture') { // All scheduled posts in the next 30 days
+            endpoint = `${fbPageId}/scheduled_posts`;
+            since = Math.floor(now.getTime() / 1000);
+            until = Math.floor((now.getTime() + thirtyDaysInMillis) / 1000);
+            statusFilter = 'Scheduled';
+            apiParams = { fields: 'id,message,scheduled_publish_time,attachments,permalink_url', since, until, limit: 100 }; // Fetch more posts for detailed view
+        }
+
+        let allPosts = [];
+        let nextPageUrl = null;
+
+        try {
+            // Initial API call
+            let response = await callFbApi(endpoint, 'GET', apiParams);
+            if (response.data) {
+                allPosts = allPosts.concat(response.data);
+            }
+            // Handle pagination if more posts exist
+            nextPageUrl = response.paging?.next;
+            while (nextPageUrl) {
+                logMessage('Fetching next page of posts...', 'api');
+                const nextResponse = await fetch(nextPageUrl); // Use raw fetch as URL includes token
+                const nextData = await nextResponse.json();
+                if (!nextResponse.ok) {
+                    throw new Error(nextData.error?.message || `HTTP error ${nextResponse.status} on pagination`);
+                }
+                if (nextData.data) {
+                    allPosts = allPosts.concat(nextData.data);
+                }
+                nextPageUrl = nextData.paging?.next;
+                await new Promise(resolve => setTimeout(resolve, 300)); // Small delay
+            }
+            logMessage(`Fetched ${allPosts.length} posts from Facebook API.`, 'success');
+
+            // --- Process Fetched Posts ---
+            let filteredPosts = allPosts.map(post => {
+                let postDate;
+                if (period === 'past') {
+                    // /feed: use created_time (string)
+                    if (!post.created_time) {
+                        console.warn('Skipping post due to missing created_time:', post.id);
+                        logMessage(`Warning: Skipping post ${post.id} due to missing created_time.`, 'warning');
+                        return null;
+                    }
+                    postDate = new Date(post.created_time);
+                    // Only include published posts (is_published true or missing means published)
+                    if (post.hasOwnProperty('is_published') && post.is_published === false) {
+                        return null;
+                    }
+                } else {
+                    // scheduled_posts: use scheduled_publish_time (number)
+                    if (typeof post.scheduled_publish_time !== 'number' || post.scheduled_publish_time <= 0) {
+                        console.warn('Skipping post due to invalid or missing scheduled_publish_time:', post.id, post.scheduled_publish_time);
+                        logMessage(`Warning: Skipping post ${post.id} due to invalid/missing scheduled_publish_time.`, 'warning');
+                        return null;
+                    }
+                    postDate = new Date(post.scheduled_publish_time * 1000);
+                }
+                if (isNaN(postDate.getTime())) {
+                    console.warn('Skipping post due to invalid Date object creation:', post.id);
+                    logMessage(`Warning: Skipping post ${post.id} due to invalid Date conversion.`, 'warning');
+                    return null;
+                }
+                // Infer type
+                let type = 'text';
+                if (post.attachments?.data?.[0]?.type === 'photo' || post.attachments?.data?.[0]?.media?.image) {
+                    type = 'image';
+                } else if (post.attachments?.data?.[0]?.type === 'video' || post.attachments?.data?.[0]?.type === 'video_inline') {
+                    type = 'video';
+                } else if (post.attachments?.data?.[0]?.type === 'share' || post.attachments?.data?.[0]?.url) {
+                    type = 'link';
+                }
+                return {
+                    id: post.id,
+                    time: postDate,
+                    type: type,
+                    msg: post.message || '[No Message]',
+                    status: statusFilter,
+                    permalink: post.permalink_url
+                };
+            }).filter(post => post !== null);
+
+            // For past: already filtered by API
+            // For future: already filtered by API
+            return filteredPosts.sort((a, b) => b.time - a.time);
+        } catch (error) {
+            console.error(`Error fetching Facebook ${period} posts:`, error);
+            throw error; // Re-throw to be caught by the caller
+        }
+    }
+
+
+    // Render Analytics based on fetched data
+    function renderAnalyticsChartsAndTable(posts, period) {
+        hideAnalyticsMessage(); // Hide loading/error message
+
+        if (!posts || posts.length === 0) {
+            analyticsPostTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-gray-500">No ${period} posts found in the last/next 30 days.</td></tr>`;
+            setAnalyticsTableHeaders(period);
+            return;
+        }
+
+        // --- Prepare data for table ---
+        // Always use the posts returned from fetchFacebookPosts(period), which fetches from Facebook API
+        const postTypes = ['text', 'image', 'link', 'video', 'other'];
+        // Determine correct 30-day window for the selected period
+        const now = new Date();
+        let start, end;
+        const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
+        if (period === 'past') {
+            end = new Date(now); // End today
+            start = new Date(now.getTime() - thirtyDaysInMillis);
+            start.setHours(0, 0, 0, 0);
+        } else { // future
+            start = new Date(now);
+            end = new Date(now.getTime() + thirtyDaysInMillis);
+            start.setHours(0, 0, 0, 0);
+        }
+        const dayTypeCounts = [];
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
+            const dayStr = date.toISOString().slice(0, 10);
+            // Count posts for this day by type
+            const counts = { date: dayStr, total: 0 };
+            postTypes.forEach(type => counts[type] = 0);
+            posts.forEach(post => {
+                if (post.time instanceof Date && !isNaN(post.time.getTime())) {
+                    const postDateStr = post.time.toISOString().slice(0, 10);
+                    if (postDateStr === dayStr) {
+                        const t = postTypes.includes(post.type) ? post.type : 'other';
+                        counts[t]++;
+                        counts.total++;
+                    }
+                }
+            });
+            dayTypeCounts.push(counts);
+        }
+
+        // --- Render Table ---
+        // Show timezone info above the table
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const tzInfo = `<tr><td colspan="8" class="text-xs text-gray-400 text-center pb-1">All dates and times are shown in your local timezone: <b>${tz}</b></td></tr>`;
+
+        setAnalyticsTableHeaders(period);
+
+        if (period === 'allfuture') {
+            // Render a detailed table for all scheduled posts in the next 30 days
+            analyticsPostTableBody.innerHTML = tzInfo + posts.map(post => {
+                return `<tr>
+                    <td class="py-2 px-3 text-xs md:text-sm">${post.time ? post.time.toLocaleString() : ''}<br><span class="text-xs text-gray-400">${post.time ? post.time.toISOString().slice(0,10) : ''}</span></td>
+                    <td class="py-2 px-3">${post.type}</td>
+                    <td class="py-2 px-3">${post.msg}</td>
+                    <td class="py-2 px-3"><a href="${post.permalink || '#'}" target="_blank" class="text-blue-400 hover:underline">View</a></td>
+                    <td class="py-2 px-3 text-center"><button class="edit-post-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded" data-postid="${post.id}"><i class="fas fa-edit"></i> Edit</button></td>
+                </tr>`;
+            }).join('');
+            return;
+        }
+
+        analyticsPostTableBody.innerHTML = tzInfo + dayTypeCounts.map(row => {
+            return `<tr>
+                <td class="py-2 px-3 text-xs md:text-sm">${new Date(row.date).toLocaleDateString()}<br><span class="text-xs text-gray-400">${row.date}</span></td>
+                <td class="py-2 px-3 text-center">${row.text}</td>
+                <td class="py-2 px-3 text-center">${row.image}</td>
+                <td class="py-2 px-3 text-center">${row.link}</td>
+                <td class="py-2 px-3 text-center">${row.video}</td>
+                <td class="py-2 px-3 text-center">${row.other}</td>
+                <td class="py-2 px-3 text-center font-bold">${row.total}</td>
+            </tr>`;
+        }).join('');
+
+        // Remove charts if they exist (legacy cleanup)
+        if (typeof postsPerDayChart !== 'undefined' && postsPerDayChart) { postsPerDayChart.destroy(); postsPerDayChart = null; }
+        if (typeof postTypePieChart !== 'undefined' && postTypePieChart) { postTypePieChart.destroy(); postTypePieChart = null; }
+    }
+
+
+    // --- Event Listeners for Analytics ---
+    document.getElementById('openAnalyticsModal').addEventListener('click', async (e) => {
+      e.preventDefault();
+      // Switch view
+      composerSection.classList.add('hidden');
+      previewSection.classList.add('hidden');
+      historySection.classList.add('hidden');
+      analyticsPanel.classList.remove('hidden');
+
+      // Highlight the 'Past' button initially
+      document.getElementById('analyticsPastBtn').classList.add('bg-blue-700');
+      document.getElementById('analyticsPastBtn').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+      document.getElementById('analyticsFutureBtn').classList.remove('bg-blue-700');
+      document.getElementById('analyticsFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+      document.getElementById('analyticsAllFutureBtn').classList.remove('bg-blue-700');
+      document.getElementById('analyticsAllFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+
+      // Attempt to load 'past' data immediately
+      showAnalyticsLoading('Fetching past 30 days data from Facebook...');
+      try {
+          const posts = await fetchFacebookPosts('past');
+          renderAnalyticsChartsAndTable(posts, 'past');
+      } catch (error) {
+          showAnalyticsError(error.message);
+      }
+    });
+
+    document.getElementById('analyticsPastBtn').addEventListener('click', async () => {
+        // Highlight button
+        document.getElementById('analyticsPastBtn').classList.add('bg-blue-700');
+        document.getElementById('analyticsPastBtn').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsFutureBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsAllFutureBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsAllFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+
+        showAnalyticsLoading('Fetching past 30 days data from Facebook...');
+        try {
+            const posts = await fetchFacebookPosts('past');
+            renderAnalyticsChartsAndTable(posts, 'past');
+        } catch (error) {
+            showAnalyticsError(error.message);
+        }
+    });
+
+     document.getElementById('analyticsFutureBtn').addEventListener('click', async () => {
+        // Highlight button
+        document.getElementById('analyticsFutureBtn').classList.add('bg-blue-700');
+        document.getElementById('analyticsFutureBtn').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsPastBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsPastBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsAllFutureBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsAllFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+
+        showAnalyticsLoading('Fetching scheduled posts for next 30 days...');
+        try {
+            const posts = await fetchFacebookPosts('future');
+            renderAnalyticsChartsAndTable(posts, 'future');
+        } catch (error) {
+            showAnalyticsError(error.message);
+        }
+    });
+
+     document.getElementById('analyticsAllFutureBtn').addEventListener('click', async () => {
+        // Highlight button
+        document.getElementById('analyticsAllFutureBtn').classList.add('bg-blue-700');
+        document.getElementById('analyticsAllFutureBtn').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsPastBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsPastBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsFutureBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+
+        showAnalyticsLoading('Fetching all scheduled posts for next 30 days...');
+        try {
+            const posts = await fetchFacebookPosts('allfuture');
+            renderAnalyticsChartsAndTable(posts, 'allfuture');
+            // Add edit button listeners
+            setTimeout(() => {
+                document.querySelectorAll('.edit-post-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const postId = this.getAttribute('data-postid');
+                        // Scroll to or open post in composer for editing
+                        handleEditScheduledPost(postId);
+                    });
+                });
+            }, 100);
+        } catch (error) {
+            showAnalyticsError(error.message);
+        }
+    });
+
+    // Store last fetched scheduled posts for editing
+    let lastFetchedScheduledPosts = [];
+
+    // Handler to jump to post in composer for editing
+    function handleEditScheduledPost(postId) {
+        // Find the post in the last fetched scheduled posts
+        const post = lastFetchedScheduledPosts.find(p => p.id === postId);
+        if (!post) {
+            logMessage(`Could not find post for editing: ${postId}`, 'warning');
+            return;
+        }
+        // Prefill the composer fields with the post's data
+        composerSection.scrollIntoView({ behavior: 'smooth' });
+        // Set post type
+        if (post.type && document.querySelector(`.post-type-btn[data-type="${post.type}"]`)) {
+            document.querySelector(`.post-type-btn[data-type="${post.type}"]`).click();
+        }
+        // Set message
+        composerMessage.value = post.msg || '';
+        // Attachments and links: for simplicity, just log them for now
+        if (post.type === 'link' && post.permalink) {
+            composerLinkUrl.value = post.permalink;
+        }
+        // Set schedule time (if available)
+        if (post.time instanceof Date && !isNaN(post.time.getTime())) {
+            // Format to yyyy-MM-ddTHH:mm for input
+            const dt = post.time;
+            const pad = n => String(n).padStart(2, '0');
+            const isoLocal = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+            scheduleTimeInput.value = isoLocal;
+        }
+        // Show a message
+        logMessage(`Loaded post ${postId} for editing. Please review and update as needed.`, 'success');
+    }function handleEditScheduledPost(postId) {
+    // Find the post in the last fetched scheduled posts
+    const post = lastFetchedScheduledPosts.find(p => p.id === postId);
+    if (!post) {
+        logMessage(`Could not find post for editing: ${postId}`, 'warning');
+        return;
+    }
+    composerSection.scrollIntoView({ behavior: 'smooth' });
+
+    // Set post type and update UI
+    if (post.type && document.querySelector(`.post-type-btn[data-type="${post.type}"]`)) {
+        document.querySelector(`.post-type-btn[data-type="${post.type}"]`).click();
+    }
+    composerMessage.value = post.msg || '';
+
+    // Hide all type-specific fields by default
+    document.getElementById('composerImageFields').classList.add('hidden');
+    document.getElementById('composerLinkFields').classList.add('hidden');
+    document.getElementById('composerVideoFields').classList.add('hidden');
+
+    // Handle image post
+    if (post.type === 'image') {
+        document.getElementById('composerImageFields').classList.remove('hidden');
+        if (post.attachments && post.attachments.data && post.attachments.data[0]) {
+            const imgUrl = post.attachments.data[0].media?.image?.src || post.attachments.data[0].url || '';
+            if (imgUrl) {
+                logMessage(`<b>Image preview:</b> <a href='${imgUrl}' target='_blank' class='text-blue-400 underline'>View Image</a>`, 'info');
+            }
+        }
+    }
+    // Handle link post
+    else if (post.type === 'link') {
+        document.getElementById('composerLinkFields').classList.remove('hidden');
+        composerLinkUrl.value = '';
+        if (post.attachments && post.attachments.data && post.attachments.data[0]) {
+            composerLinkUrl.value = post.attachments.data[0].url || post.permalink || '';
+        } else if (post.permalink) {
+            composerLinkUrl.value = post.permalink;
+        }
+    }
+    // Handle video post
+    else if (post.type === 'video') {
+        document.getElementById('composerVideoFields').classList.remove('hidden');
+        if (post.attachments && post.attachments.data && post.attachments.data[0]) {
+            const vidUrl = post.attachments.data[0].url || '';
+            if (vidUrl) {
+                logMessage(`<b>Video attachment:</b> <a href='${vidUrl}' target='_blank' class='text-blue-400 underline'>View Video</a>`, 'info');
+            }
+        }
+    }
+
+    // Set schedule time (if available)
+    if (post.time instanceof Date && !isNaN(post.time.getTime())) {
+        const dt = post.time;
+        const pad = n => String(n).padStart(2, '0');
+        const isoLocal = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+        scheduleTimeInput.value = isoLocal;
+    }
+
+    logMessage(`Loaded post ${postId} for editing. Please review and update as needed.`, 'success');
+}
+
+    document.getElementById('analyticsAllFutureBtn').addEventListener('click', async () => {
+        // Highlight button
+        document.getElementById('analyticsAllFutureBtn').classList.add('bg-blue-700');
+        document.getElementById('analyticsAllFutureBtn').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsPastBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsPastBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('analyticsFutureBtn').classList.remove('bg-blue-700');
+        document.getElementById('analyticsFutureBtn').classList.add('bg-gray-700', 'hover:bg-gray-600');
+
+        showAnalyticsLoading('Fetching all scheduled posts for next 30 days...');
+        try {
+            const posts = await fetchFacebookPosts('allfuture');
+            lastFetchedScheduledPosts = posts;
+            renderAnalyticsChartsAndTable(posts, 'allfuture');
+            // Add edit button listeners
+            setTimeout(() => {
+                document.querySelectorAll('.edit-post-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const postId = this.getAttribute('data-postid');
+                        handleEditScheduledPost(postId);
+                    });
+                });
+            }, 100);
+        } catch (error) {
+            showAnalyticsError(error.message);
+        }
+    });
+
+    function showMainView() {
+      composerSection.classList.remove('hidden');
+      previewSection.classList.remove('hidden');
+      historySection.classList.remove('hidden');
+      analyticsPanel.classList.add('hidden');
+    }
+
+    // Dynamically set table headers for analytics table
+    function setAnalyticsTableHeaders(period) {
+        const analyticsTableHead = document.getElementById('analyticsTableHead');
+        if (!analyticsTableHead) return;
+        let headerHtml = '';
+        if (period === 'allfuture') {
+            headerHtml = `<tr>
+                <th class="py-3 px-4">Scheduled Date</th>
+                <th class="py-3 px-4">Type</th>
+                <th class="py-3 px-4">Message</th>
+                <th class="py-3 px-4">Permalink</th>
+                <th class="py-3 px-4">Edit</th>
+            </tr>`;
+        } else {
+            headerHtml = `<tr>
+                <th class="py-3 px-4">Date</th>
+                <th class="py-3 px-4">Text</th>
+                <th class="py-3 px-4">Image</th>
+                <th class="py-3 px-4">Link</th>
+                <th class="py-3 px-4">Video</th>
+                <th class="py-3 px-4">Other</th>
+                <th class="py-3 px-4">Total</th>
+            </tr>`;
+        }
+        analyticsTableHead.innerHTML = headerHtml;
+    }
   </script>
 </body>
 </html>
