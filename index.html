@@ -49,7 +49,7 @@
             <label class="text-gray-300">Choose Video(s)</label>
             <input id="composerVideos" type="file" accept="video/*" multiple class="bg-gray-700 border border-gray-600 rounded text-gray-100">
           </div>
-          <div class="flex gap-4 items-center">
+          <div class="flex gap-4 items-center flex-wrap">
             <input id="postNow" type="checkbox" class="mr-2">
             <label for="postNow" class="text-gray-300">Post Now</label>
             <span class="ml-6 text-gray-400">Schedule for:</span>
@@ -60,15 +60,11 @@
               <option value="America/New_York">America/New_York</option>
               <option value="Europe/London">Europe/London</option>
             </select>
+            <input id="gapMins" type="number" min="1" placeholder="Gap (mins)" class="ml-2 bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1 w-24">
           </div>
           <div class="flex gap-2 flex-wrap">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Publish to Facebook</button>
-            <button id="saveDraft" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">Save Draft</button>
-            <button id="restoreDraft" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">Restore Draft</button>
-            <button id="clearDraft" type="button" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Clear Draft</button>
-            <button id="importCsv" type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Import CSV</button>
-            <input id="gapMins" type="number" min="1" placeholder="Gap (mins)" class="bg-gray-700 border border-gray-600 rounded text-gray-100 px-2 py-1 w-24">
-            <button id="aiGenerate" type="button" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">AI Generate</button>
+            <button id="importCsv" type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded hidden">Import CSV</button>
           </div>
         </form>
       </section>
@@ -105,8 +101,18 @@
       document.getElementById('composerVideoFields').classList.toggle('hidden', type !== 'video');
       // Optionally reset preview
       updatePreview();
+      updateImportCsvVisibility();
     }
     setPostType('text');
+    // Show/hide Import CSV button based on post type
+    function updateImportCsvVisibility() {
+      const importCsvBtn = document.getElementById('importCsv');
+      if (currentPostType === 'text') {
+        importCsvBtn.classList.remove('hidden');
+      } else {
+        importCsvBtn.classList.add('hidden');
+      }
+    }
     // --- Composer Interactivity ---
     document.getElementById('composerForm').addEventListener('input', updatePreview);
     document.getElementById('composerForm').addEventListener('change', updatePreview);
@@ -375,6 +381,7 @@
         document.getElementById('tokenStatus').innerHTML = '<span class="text-red-400">Invalid token or page ID.</span>';
       }
     });
+    updateImportCsvVisibility();
   </script>
 </body>
 </html>
